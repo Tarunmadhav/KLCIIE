@@ -39,6 +39,7 @@ export default function AdminLayout() {
   const { profile, isSuperAdmin, signOut } = useAuth()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
+  const isMailAdmin = profile?.role === 'mail_admin'
 
   const navGroups = [
     {
@@ -57,7 +58,7 @@ export default function AdminLayout() {
         { to: '/admin/members', label: 'Members', icon: Users },
         ...(isSuperAdmin ? [{ to: '/admin/members/add', label: 'Add Member', icon: UserPlus }] : []),
         { to: '/admin/recruits', label: 'Recruits', icon: UserCheck },
-        { to: '/admin/admins', label: 'Admins & MFA', icon: Shield },
+        ...(!isMailAdmin ? [{ to: '/admin/admins', label: 'Admins & MFA', icon: Shield }] : []),
         ...(isSuperAdmin ? [{ to: '/admin/user-roles', label: 'User Roles', icon: UserCog }] : []),
       ],
     },
@@ -88,7 +89,7 @@ export default function AdminLayout() {
       items: [
         { to: '/admin/reports', label: 'Reports', icon: BarChart3 },
         { to: '/admin/branding', label: 'Branding', icon: Palette },
-        { to: '/admin/settings', label: 'Settings', icon: Settings },
+        ...(!isMailAdmin ? [{ to: '/admin/settings', label: 'Settings', icon: Settings }] : []),
         ...(isSuperAdmin ? [{ to: '/admin/smtp', label: 'Email', icon: Mail }] : []),
         ...(isSuperAdmin ? [{ to: '/admin/registration-keys', label: 'Registration Keys', icon: KeyRound }] : []),
         { to: '/admin/audit-logs', label: 'Audit Logs', icon: ScrollText },

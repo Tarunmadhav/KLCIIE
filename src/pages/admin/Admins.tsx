@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { Shield, ShieldAlert, UserPlus, UserX } from 'lucide-react'
 import { Avatar, Badge, Button, EmptyState, Field, PageHeader, PageLoader, SelectInput } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
@@ -8,23 +8,86 @@ import { errorMessage, formatDate } from '@/lib/utils'
 
 type AdminRow = Profile
 
+function PromoteSection({
+  icon,
+  title,
+  fieldLabel,
+  options,
+  selected,
+  onSelect,
+  busy,
+  onSubmit,
+  footer,
+}: {
+  icon: ReactNode
+  title: string
+  fieldLabel: string
+  options: Profile[]
+  selected: string
+  onSelect: (v: string) => void
+  busy: boolean
+  onSubmit: (e: FormEvent, role: typeof ADMIN_ROLES[number]) => void
+  footer: ReactNode
+}) {
+  const [newRole, setNewRole] = useState<typeof ADMIN_ROLES[number]>('event_admin')
+  return (
+    <div className="card p-5">
+      <h2 className="flex items-center gap-2 text-base font-bold text-slate-900">
+        <span className="text-primary-600">{icon}</span> {title}
+      </h2>
+      <form onSubmit={(e) => onSubmit(e, newRole)} className="mt-4 flex flex-wrap items-end gap-3">
+        <div className="min-w-64 flex-1">
+          <Field label={fieldLabel}>
+            <SelectInput value={selected} onChange={(e) => onSelect(e.target.value)}>
+              <option value="">Select {fieldLabel.toLowerCase()}…</option>
+              {options.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.full_name} {m.ciie_id ? `(${m.ciie_id})` : ''}
+                </option>
+              ))}
+            </SelectInput>
+          </Field>
+        </div>
+        <div className="min-w-48">
+          <Field label="Admin role">
+            <SelectInput value={newRole} onChange={(e) => setNewRole(e.target.value as typeof newRole)}>
+              {ADMIN_ROLES.map((r) => (
+                <option key={r} value={r}>
+                  {ROLE_LABELS[r]}
+                </option>
+              ))}
+            </SelectInput>
+          </Field>
+        </div>
+        <Button type="submit" disabled={busy}>
+          Promote
+        </Button>
+      </form>
+      <p className="mt-2 text-xs text-slate-400">{footer}</p>
+    </div>
+  )
+}
+
 export default function Admins() {
   const { user, isSuperAdmin } = useAuth()
   const [admins, setAdmins] = useState<AdminRow[]>([])
   const [members, setMembers] = useState<Profile[]>([])
+  const [users, setUsers] = useState<Profile[]>([])
   const [memberId, setMemberId] = useState('')
-  const [newRole, setNewRole] = useState<typeof ADMIN_ROLES[number]>('event_admin')
+  const [userId, setUserId] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
 
   const load = async () => {
-    const [{ data: adminData }, { data: memberData }] = await Promise.all([
+    const [{ data: adminData }, { data: memberData }, { data: userData }] = await Promise.all([
       supabase.from('profiles').select('*').in('role', ADMIN_ROLES).order('full_name'),
       supabase.from('profiles').select('id, full_name, ciie_id, email, status').eq('role', 'member').eq('status', 'active').order('full_name'),
+      supabase.from('profiles').select('id, full_name, ciie_id, email, status').eq('role', 'user').eq('status', 'active').order('full_name'),
     ])
     setAdmins((adminData ?? []) as AdminRow[])
     setMembers((memberData ?? []) as Profile[])
+    setUsers((userData ?? []) as Profile[])
     setLoading(false)
   }
 
@@ -32,30 +95,30 @@ export default function Admins() {
     load()
   }, [])
 
-  const filteredMembers = useMemo(() => {
-    if (!memberId) return members.slice(0, 30)
-    return members.slice(0, 30)
-  }, [members, memberId])
+  const filteredMembers = useMemo(() => members.slice(0, 30), [members])
+  const filteredUsers = useMemo(() => users.slice(0, 30), [users])
 
-  const promote = async (e: FormEvent) => {
+  const promote = async (kind: 'member' | 'user', e: FormEvent, role: typeof ADMIN_ROLES[number]) => {
     e.preventDefault()
-    if (!memberId) {
-      setError('Choose a member to promote.')
+    const targetId = kind === 'member' ? memberId : userId
+    if (!targetId) {
+      setError(`Choose a ${kind} to promote.`)
       return
     }
     setBusy(true)
     setError('')
     const { error } = await supabase
       .from('profiles')
-      .update({ role: newRole, status: 'active', mfa_setup_required: true })
-      .eq('id', memberId)
+      .update({ role, status: 'active', mfa_setup_required: true })
+      .eq('id', targetId)
     setBusy(false)
     if (error) {
       setError(errorMessage(error))
       return
     }
-    await supabase.rpc('log_admin_event', { p_action: 'Admin Promoted', p_entity_type: 'admin', p_entity_id: memberId, p_details: { role: newRole } })
-    setMemberId('')
+    await supabase.rpc('log_admin_event', { p_action: 'Admin Promoted', p_entity_type: 'admin', p_entity_id: targetId, p_details: { role, from: kind } })
+    if (kind === 'member') setMemberId('')
+    else setUserId('')
     load()
   }
 
@@ -101,45 +164,41 @@ export default function Admins() {
     <div className="max-w-4xl">
       <PageHeader
         title="Admins & MFA"
-        subtitle={isSuperAdmin ? 'Promote members, change roles and manage MFA enforcement.' : 'View only — only a Super Admin can manage admins.'}
+        subtitle={isSuperAdmin ? 'Promote members or users, change roles and manage MFA enforcement.' : 'View only — only a Super Admin can manage admins.'}
       />
 
       {isSuperAdmin && (
-        <div className="card mb-6 p-5">
-          <h2 className="flex items-center gap-2 text-base font-bold text-slate-900">
-            <UserPlus size={16} className="text-primary-600" /> Promote member
-          </h2>
-          <form onSubmit={promote} className="mt-4 flex flex-wrap items-end gap-3">
-            <div className="min-w-64 flex-1">
-              <Field label="Member">
-                <SelectInput value={memberId} onChange={(e) => setMemberId(e.target.value)}>
-                  <option value="">Select member…</option>
-                  {filteredMembers.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.full_name} {m.ciie_id ? `(${m.ciie_id})` : ''}
-                    </option>
-                  ))}
-                </SelectInput>
-              </Field>
-            </div>
-            <div className="min-w-48">
-              <Field label="Admin role">
-                <SelectInput value={newRole} onChange={(e) => setNewRole(e.target.value as typeof newRole)}>
-                  {ADMIN_ROLES.map((r) => (
-                    <option key={r} value={r}>
-                      {ROLE_LABELS[r]}
-                    </option>
-                  ))}
-                </SelectInput>
-              </Field>
-            </div>
-            <Button type="submit" disabled={busy}>
-              Promote
-            </Button>
-          </form>
-          <p className="mt-2 text-xs text-slate-400">
-            Promoted admins are flagged <code>mfa_setup_required</code> — they must complete MFA on their next login.
-          </p>
+        <div className="mb-6 grid gap-5 lg:grid-cols-2">
+          <PromoteSection
+            icon={<UserPlus size={16} />}
+            title="Promote member"
+            fieldLabel="Member"
+            options={filteredMembers}
+            selected={memberId}
+            onSelect={setMemberId}
+            busy={busy}
+            onSubmit={(e, role) => promote('member', e, role)}
+            footer={
+              <>
+                Promoted admins are flagged <code>mfa_setup_required</code> — they must complete MFA on their next login.
+              </>
+            }
+          />
+          <PromoteSection
+            icon={<UserX size={16} />}
+            title="Promote user"
+            fieldLabel="User"
+            options={filteredUsers}
+            selected={userId}
+            onSelect={setUserId}
+            busy={busy}
+            onSubmit={(e, role) => promote('user', e, role)}
+            footer={
+              <>
+                Promotes a basic account (role <code>user</code>) directly to an admin role. MFA will be required on their next login.
+              </>
+            }
+          />
         </div>
       )}
 
