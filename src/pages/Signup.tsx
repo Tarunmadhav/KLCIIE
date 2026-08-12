@@ -1,12 +1,12 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { UserPlus } from 'lucide-react'
+import { MailCheck, UserPlus } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { useAuth } from '@/hooks/useAuth'
 import { useSettings } from '@/hooks/useSettings'
 import { Button, Field, Spinner, TextInput } from '@/components/ui'
 import { CustomFieldInputs, missingFields } from '@/components/RegistrationFormFields'
 import type { CustomFieldDef } from '@/lib/types'
+import { errorMessage } from '@/lib/utils'
 
 const DEFAULT_FIELDS: CustomFieldDef[] = [
   { key: 'phone', label: 'Phone number', type: 'text', required: true },
@@ -15,14 +15,11 @@ const DEFAULT_FIELDS: CustomFieldDef[] = [
 ]
 
 export default function Signup() {
-  const { signUp, refreshProfile } = useAuth()
   const settings = useSettings()
   const navigate = useNavigate()
   const [fullName, setFullName] = useState('')
   const [studentId, setStudentId] = useState('')
   const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirm, setConfirm] = useState('')
   const [values, setValues] = useState<Record<string, string>>({})
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -40,17 +37,13 @@ export default function Signup() {
     e.preventDefault()
     setError('')
     setNotice('')
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters.')
-      return
-    }
-    if (password !== confirm) {
-      setError('Passwords do not match.')
-      return
-    }
     const missing = missingFields(fields, values)
     if (missing) {
       setError(missing)
+      return
+    }
+    if (!fullName.trim() || !studentId.trim()) {
+      setError('Please enter your full name and student ID.')
       return
     }
 
@@ -65,32 +58,42 @@ export default function Signup() {
       }
     }
 
-    const meta: Record<string, string> = {
-      student_id: studentId.trim(),
-    }
-    for (const f of fields) {
-      meta[f.key] = (values[f.key] ?? '').trim()
-    }
-
-    if (!fullName.trim() || !studentId.trim()) {
-      setError('Please enter your full name and student ID.')
-      return
-    }
-
     setBusy(true)
-    const res = await signUp(fullName.trim(), email.trim(), password, meta)
-    setBusy(false)
-    if (res.error) {
-      setError(res.error)
+    const { data, error: err } = await supabase.rpc('apply_to_ciie', {
+      p_full_name: fullName.trim(),
+      p_email: email.trim(),
+      p_student_id: studentId.trim(),
+      p_phone: (values['phone'] ?? '').trim() || null,
+      p_department: (values['department'] ?? '').trim() || null,
+      p_year_of_study: (values['year_of_study'] ?? '').trim() || null,
+      p_fields: values,
+    })
+    if (err) {
+      setBusy(false)
+      setError(errorMessage(err))
       return
     }
-    const { data } = await supabase.auth.getSession()
-    if (data.session) {
-      await refreshProfile()
-      navigate('/recruit/success', { replace: true })
-    } else {
-      setNotice('Registration submitted! Check your email to confirm your address, then log in.')
+    const info = (data ?? {}) as { application_id?: string | null; to_email?: string; full_name?: string }
+    if (!info.application_id) {
+      setBusy(false)
+      setError('Could not create your application. Please try again.')
+      return
     }
+    const { error: mailErr } = await supabase.functions.invoke('send-recruit-email', {
+      body: { kind: 'join-verification', application_id: info.application_id },
+    })
+    setBusy(false)
+    if (mailErr) {
+      setError(`We couldn't email the verification code. ${errorMessage(mailErr)}`)
+      return
+    }
+    navigate('/verify-application', {
+      state: {
+        id: info.application_id,
+        email: info.to_email ?? email.trim(),
+        fullName: info.full_name ?? fullName.trim(),
+      },
+    })
   }
 
   if (!settings.allow_public_signup) return null
@@ -114,7 +117,7 @@ export default function Signup() {
         <Field label="Student ID (university roll number)">
           <TextInput required value={studentId} onChange={(e) => setStudentId(e.target.value)} placeholder="e.g. 2300123456" />
         </Field>
-        <Field label="Email" hint={settings.signup_domain_restriction ? 'A valid student email is mandatory.' : undefined}>
+        <Field label="Email" hint={settings.signup_domain_restriction ? 'A valid student email is mandatory. We send a verification code to this address.' : undefined}>
           <TextInput type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={settings.signup_domain_restriction ? 'you@kluniversity.in' : 'you@example.com'} />
         </Field>
 
@@ -125,20 +128,20 @@ export default function Signup() {
           </div>
         )}
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Password">
-            <TextInput type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 8 characters" />
-          </Field>
-          <Field label="Confirm password">
-            <TextInput type="password" required value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Repeat password" />
-          </Field>
+        <div className="rounded-xl border border-primary-200 bg-primary-50 px-4 py-3 text-xs text-primary-800">
+          <p className="flex items-center gap-2 font-semibold">
+            <MailCheck size={15} className="shrink-0" /> No account is created.
+          </p>
+          <p className="mt-1 text-primary-700/80">
+            We only email a verification code to confirm your application. You'll create an account if you're selected as a CIIE member.
+          </p>
         </div>
 
         {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
         {notice && <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">{notice}</p>}
 
         <Button type="submit" disabled={busy} className="w-full">
-          {busy ? <Spinner className="border-white/40 border-t-white" /> : 'Apply to join CIIE'}
+          {busy ? <Spinner className="border-white/40 border-t-white" /> : 'Submit application'}
         </Button>
       </form>
 

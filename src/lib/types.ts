@@ -366,7 +366,7 @@ export interface RecruitFormTemplate {
 
 export interface RecruitApplicationRow {
   application_id: string
-  member_id: string
+  member_id: string | null
   stage: RecruitStage
   full_name: string | null
   ciie_id: string | null

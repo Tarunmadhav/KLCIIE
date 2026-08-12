@@ -4,6 +4,7 @@ import { KeyRound, ShieldCheck, Timer } from 'lucide-react'
 import { Button, Field, PageLoader, Spinner, TextInput } from '@/components/ui'
 import { CustomFieldInputs, missingFields } from '@/components/RegistrationFormFields'
 import { useAuth } from '@/hooks/useAuth'
+import { useSettings } from '@/hooks/useSettings'
 import { supabase } from '@/lib/supabase'
 import type { CustomFieldDef } from '@/lib/types'
 import { errorMessage } from '@/lib/utils'
@@ -17,6 +18,7 @@ const DEFAULT_EXTRA: CustomFieldDef[] = [
 export default function RoleRegister() {
   const { slug } = useParams<{ slug: string }>()
   const { signUp, refreshProfile } = useAuth()
+  const settings = useSettings()
   const navigate = useNavigate()
 
   const [info, setInfo] = useState<{ label: string; role: string; enabled: boolean; requires_keys: boolean; fields: CustomFieldDef[] } | null>(null)
@@ -91,6 +93,17 @@ export default function RoleRegister() {
       return
     }
 
+    const domain = email.trim().split('@').pop()?.toLowerCase()
+    if (settings.signup_domain_restriction) {
+      const allowed = (settings.signup_allowed_domains ?? [])
+        .map((d) => d.trim().toLowerCase().replace(/^@/, ''))
+        .filter(Boolean)
+      if (!domain || !allowed.some((d) => domain === d || domain.endsWith('.' + d))) {
+        setError(`Registration is limited to ${allowed.map((d) => `@${d}`).join(', ')} email addresses.`)
+        return
+      }
+    }
+
     setBusy(true)
     const { data, error: valErr } = await supabase.rpc('validate_role_registration', {
       p_slug: slug,
@@ -154,8 +167,8 @@ export default function RoleRegister() {
             <Field label="Student ID *">
               <TextInput required value={studentId} onChange={(e) => setStudentId(e.target.value)} placeholder="University roll number" />
             </Field>
-            <Field label="Email *">
-              <TextInput type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+            <Field label="Email *" hint={settings.signup_domain_restriction ? 'Only KL University email addresses are accepted.' : undefined}>
+              <TextInput type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={settings.signup_domain_restriction ? 'you@kluniversity.in' : 'you@example.com'} />
             </Field>
             <Field label="Password *">
               <TextInput type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 8 characters" />

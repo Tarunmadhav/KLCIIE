@@ -25,6 +25,7 @@ import Signup from '@/pages/Signup'
 import Register from '@/pages/Register'
 import RoleRegister from '@/pages/RoleRegister'
 import RoleRegisterSuccess from '@/pages/RoleRegisterSuccess'
+import VerifyApplication from '@/pages/VerifyApplication'
 import NotFound from '@/pages/NotFound'
 
 import MfaSetup from '@/pages/auth/MfaSetup'
@@ -129,6 +130,7 @@ export default function App() {
               <Route path="/register" element={<Register />} />
               <Route path="/register/:slug" element={<RoleRegister />} />
               <Route path="/register/role/success" element={<RoleRegisterSuccess />} />
+              <Route path="/verify-application" element={<VerifyApplication />} />
             </Route>
 
             <Route path="/auth/mfa-setup" element={<MfaSetup />} />

@@ -184,13 +184,31 @@ export default function RecruitFinalSelection() {
         ) : (
           <div className="card divide-y divide-slate-100">
             {pending.map((row) => (
-              <div key={row.application_id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
-                <ApplicantInfo row={row} />
-                <div className="flex items-center gap-3">
-                  <StageBadge stage={row.stage} />
-                  <Button className="!px-3 !py-1.5 text-xs" onClick={() => openApprove(row)}>
-                    <CheckCircle2 size={14} /> Approve
-                  </Button>
+              <div key={row.application_id} className="space-y-3 px-5 py-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <ApplicantInfo row={row} />
+                  <div className="flex items-center gap-3">
+                    <StageBadge stage={row.stage} />
+                    <Button className="!px-3 !py-1.5 text-xs" onClick={() => openApprove(row)}>
+                      <CheckCircle2 size={14} /> Approve
+                    </Button>
+                  </div>
+                </div>
+                <div className="grid gap-3 lg:grid-cols-2">
+                  <ResponsesView
+                    title="GD round"
+                    evaluator={row.gd_evaluator}
+                    fields={row.gd_form_fields}
+                    responses={row.gd_responses}
+                    remarks={row.gd_remarks}
+                  />
+                  <ResponsesView
+                    title="Interview round"
+                    evaluator={row.interview_evaluator}
+                    fields={row.interview_form_fields}
+                    responses={row.interview_responses}
+                    remarks={row.interview_remarks}
+                  />
                 </div>
               </div>
             ))}
