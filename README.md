@@ -81,8 +81,10 @@ npm run typecheck # typecheck only
   Every other role signs in with just email + password.
 - Attendance is keyed off the `attendance` table; certificates are generated for
   present members with linked registrations.
-- The scanner distinguishes ticket QR codes (`event_attendance`) from member QR
-  codes (`member`) and routes each to the matching check-in path.
+- The scanner distinguishes ticket QR codes (`ticket`) from attendance/member QR
+  codes (`member`). Scanning a ticket only verifies the registration (shows the
+  details, never marks attendance); scanning a member/attendance QR marks the
+  round attendance.
 - Members show their attendance QR under Dashboard → **Attendance**.
 - Event team assignments (role + hours worked) appear in Dashboard → **My Events**.
 - `Event.form_fields` is an opaque JSON array; cast to your form schema when editing.

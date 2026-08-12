@@ -10,7 +10,7 @@ export default function MemberLayout() {
     { to: '/dashboard', label: 'Overview', icon: LayoutDashboard, end: true },
     { to: '/dashboard/events', label: 'My Events', icon: CalendarCheck },
     { to: '/dashboard/points', label: 'My Points', icon: Award },
-    { to: '/dashboard/leaderboard', label: 'Leaderboard', icon: Trophy },
+    ...(profile?.role !== 'user' ? [{ to: '/dashboard/leaderboard', label: 'Leaderboard', icon: Trophy }] : []),
     ...(profile?.role === 'member_ciie'
       ? [
           { to: '/dashboard/duties', label: 'Assigned Work', icon: ClipboardList },

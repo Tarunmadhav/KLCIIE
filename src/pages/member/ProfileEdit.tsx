@@ -203,12 +203,16 @@ export default function ProfileEdit() {
             <Field label="Academic year">
               <TextInput value={form.academic_year} onChange={(e) => setForm({ ...form, academic_year: e.target.value })} placeholder="2026-27" />
             </Field>
-            <Field label="Position">
-              <TextInput value={form.team} onChange={(e) => setForm({ ...form, team: e.target.value })} placeholder="President, Lead, Coordinator…" />
-            </Field>
-            <Field label="Domain" hint="Your designation, e.g. Web Development, Design, Marketing">
-              <TextInput value={form.domain} onChange={(e) => setForm({ ...form, domain: e.target.value })} placeholder="Web Development" />
-            </Field>
+            {profile.role !== 'user' && (
+              <>
+                <Field label="Position">
+                  <TextInput value={form.team} onChange={(e) => setForm({ ...form, team: e.target.value })} placeholder="President, Lead, Coordinator…" />
+                </Field>
+                <Field label="Domain" hint="Your designation, e.g. Web Development, Design, Marketing">
+                  <TextInput value={form.domain} onChange={(e) => setForm({ ...form, domain: e.target.value })} placeholder="Web Development" />
+                </Field>
+              </>
+            )}
           </div>
           <Field label="Bio">
             <TextArea rows={3} value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} placeholder="A short introduction…" />

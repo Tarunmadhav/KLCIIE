@@ -34,7 +34,7 @@ export default function MemberDashboard() {
           .limit(10),
         fetchPublishedEvents({ upcomingOnly: true }),
       ])
-      const upcomingEvents = events.filter((e) => new Date(e.start_date) >= new Date()).slice(0, 4)
+      const upcomingEvents = events.slice(0, 4)
       const coordMap = await fetchCoordinators(upcomingEvents.map((e) => e.id))
       if (active) {
         setStats((statsData as MemberStats) ?? null)

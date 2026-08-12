@@ -181,7 +181,7 @@ export default function AdminLayout() {
           <Link to="/" className="text-sm font-medium text-slate-500 hover:text-primary-600">
             ← View public site
           </Link>
-          <span className="text-xs text-slate-400">Super Admin MFA protected</span>
+          <span className="text-xs text-slate-400">Admin console · MFA protected</span>
         </header>
         <main className="px-4 py-6 lg:px-8">
           <Outlet />

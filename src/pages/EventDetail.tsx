@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
   Building2,
   CalendarDays,
@@ -12,11 +12,11 @@ import {
   Users,
   Video,
 } from 'lucide-react'
-import { Avatar, Badge, PageLoader } from '@/components/ui'
+import { Avatar, Badge, Modal, PageLoader } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
 import { fetchEvent, fetchEventCounts } from '@/lib/queries'
 import { supabase } from '@/lib/supabase'
-import type { Announcement, Event, EventRole, GalleryItem } from '@/lib/types'
+import type { Announcement, Event, EventRegistration, EventRole, GalleryItem } from '@/lib/types'
 import { formatDate, seatsRemaining } from '@/lib/utils'
 
 interface TeamRow {
@@ -36,6 +36,8 @@ interface TeamRow {
 export default function EventDetail() {
   const { id } = useParams<{ id: string }>()
   const { user, profile } = useAuth()
+  const location = useLocation()
+  const navigate = useNavigate()
   const [event, setEvent] = useState<Event | null>(null)
   const [team, setTeam] = useState<TeamRow[]>([])
   const [gallery, setGallery] = useState<GalleryItem[]>([])
@@ -128,6 +130,11 @@ export default function EventDetail() {
     const roleName = t.role?.name ?? 'Team'
     grouped.set(roleName, [...(grouped.get(roleName) ?? []), t])
   }
+
+  const success = (location.state as {
+    registrationSuccess?: { registrationId: string; registration?: EventRegistration }
+  } | null)?.registrationSuccess
+  const closeSuccess = () => navigate(location.pathname, { replace: true, state: null })
 
   return (
     <div>
@@ -284,6 +291,33 @@ export default function EventDetail() {
           </div>
         )}
       </div>
+
+      {/* REGISTRATION SUCCESS POPUP */}
+      {success && (
+        <Modal open onClose={closeSuccess} title="Successfully registered!">
+          <div className="text-center">
+            <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100 text-green-600">
+              <CheckCircle2 size={32} />
+            </span>
+            <p className="mt-4 text-sm text-slate-600">
+              You're registered for <strong>{event.title}</strong>. Show your ticket QR at the venue to confirm your
+              attendance.
+            </p>
+          </div>
+          <div className="mt-6 grid gap-2 sm:grid-cols-2">
+            <Link
+              to={`/register/success/${success.registrationId}`}
+              state={{ registration: success.registration }}
+              className="btn-primary"
+            >
+              <Ticket size={16} /> Open Ticket
+            </Link>
+            <Link to="/upcoming-events" className="btn-secondary">
+              Explore More Events
+            </Link>
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }

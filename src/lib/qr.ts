@@ -1,8 +1,10 @@
 import QRCode from 'qrcode'
 
-// Attendance / participant QR payloads.
+// Ticket QR payloads. The ticket QR is for verification only — scanning it at
+// the venue shows registration details but never marks attendance. Attendance
+// is marked by scanning the per-round member/attendance QR codes instead.
 export interface ParticipantPayload {
-  type: 'event_attendance'
+  type: 'ticket'
   v: 1
   event_id: string
   registration_id: string

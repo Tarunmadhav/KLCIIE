@@ -5,13 +5,13 @@ import { isAdminRole } from '@/lib/types'
 import { PageLoader } from '@/components/ui'
 
 /**
- * Returns the MFA route a super admin must visit before the Admin Console,
- * or null when they are clear to proceed. Only super_admin is MFA-gated;
- * all other roles sign in with just email + password.
+ * Returns the MFA route an admin must visit before the Admin Console,
+ * or null when they are clear to proceed. Every admin role is MFA-gated;
+ * non-admin roles sign in with just email + password.
  */
 export function useMfaRedirect(): string | null {
   const { profile, mfa } = useAuth()
-  if (!profile || (profile.role !== 'super_admin' && profile.role !== 'main_admin')) return null
+  if (!profile || !isAdminRole(profile.role)) return null
   if (profile.mfa_setup_required) return '/auth/mfa-setup'
   if (!mfa) return null
   if (!mfa.hasVerifiedFactor) return '/auth/mfa-setup'

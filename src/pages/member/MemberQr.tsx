@@ -253,7 +253,7 @@ export default function MemberQrPage() {
           <div className="mt-5 flex items-start gap-2 rounded-xl bg-slate-100 px-4 py-3 text-xs text-slate-500">
             <QrIcon size={16} className="mt-0.5 shrink-0" />
             <span>
-              Keep these QRs private — they are tied to your CIIE identity. Attendance points are awarded automatically.
+              Keep these QRs private — they are tied to your CIIE identity.
             </span>
           </div>
         </>

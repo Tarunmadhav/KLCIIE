@@ -5,7 +5,7 @@ import { Button, Field, PageLoader, SelectInput, Spinner, TextInput, TextArea } 
 import { useAuth } from '@/hooks/useAuth'
 import { fetchEvent } from '@/lib/queries'
 import { supabase } from '@/lib/supabase'
-import type { Event } from '@/lib/types'
+import type { Event, EventRegistration } from '@/lib/types'
 import { errorMessage, seatsRemaining } from '@/lib/utils'
 
 interface FormField {
@@ -62,7 +62,8 @@ export default function EventRegister() {
   }
 
   const fields = (event.form_fields as unknown as FormField[]) ?? []
-  const submit = async () => {
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
     if (!name.trim() || !studentId.trim() || !email.trim()) {
       setError('Please fill in your name, student ID and email.')
       setBusy(false)
@@ -96,7 +97,14 @@ export default function EventRegister() {
       return
     }
     if (data) {
-      navigate(`/register/success/${(data as { id: string }).id}`)
+      navigate(`/events/${event.slug ?? event.id}`, {
+        state: {
+          registrationSuccess: {
+            registrationId: (data as EventRegistration).id,
+            registration: data as EventRegistration,
+          },
+        },
+      })
     }
   }
 

@@ -39,7 +39,7 @@ export default function RegisterSuccess() {
         setReg(r)
         setEvent((ev as { title: string; start_date: string } | null) ?? null)
         const payload = participantPayload({
-          type: 'event_attendance',
+          type: 'ticket',
           v: 1,
           event_id: r.event_id,
           registration_id: r.id,
@@ -82,7 +82,7 @@ export default function RegisterSuccess() {
     <div className="container-page max-w-md py-10 text-center">
       <h1 className="text-2xl font-extrabold text-slate-900">You're registered! 🎉</h1>
       <p className="mt-1 text-sm text-slate-500">
-        Show this QR at the venue. Attendance marks points automatically.
+        Show this QR at the venue to confirm your attendance.
       </p>
 
       <div className="card mx-auto mt-6 overflow-hidden text-center">

@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import type { Profile } from '@/lib/types'
 
 interface PublicMember extends Pick<Profile, 'id' | 'full_name' | 'ciie_id' | 'department' | 'year_of_study' | 'team' | 'avatar_url' | 'bio'> {
+  role?: string | null
   domain?: string | null
   social_links?: Record<string, string>
 }
@@ -25,7 +26,7 @@ export default function MembersList() {
     const load = async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, ciie_id, department, year_of_study, team, domain, avatar_url, bio, social_links')
+        .select('id, full_name, ciie_id, department, year_of_study, team, domain, role, avatar_url, bio, social_links')
         .eq('is_listed_member', true)
         .order('full_name')
         .limit(200)
@@ -72,7 +73,7 @@ export default function MembersList() {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
                   <p className="truncate font-bold text-slate-900">{m.full_name}</p>
-                  {m.domain && <Badge tone="primary" className="shrink-0">{m.domain}</Badge>}
+                  {m.domain && m.role !== 'user' && <Badge tone="primary" className="shrink-0">{m.domain}</Badge>}
                 </div>
                 <p className="text-xs text-slate-400">{m.ciie_id}</p>
                 <p className="truncate text-xs text-slate-500">

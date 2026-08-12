@@ -4,7 +4,7 @@ import { Badge, TextInput } from '@/components/ui'
 import { supabase } from '@/lib/supabase'
 import type { Event } from '@/lib/types'
 import { cn, errorMessage, formatDateTime } from '@/lib/utils'
-import { Camera, CheckCircle2, Loader2, UserRound, XCircle } from 'lucide-react'
+import { Camera, CheckCircle2, UserRound, XCircle } from 'lucide-react'
 
 type ScanState = 'scanning' | 'success' | 'error' | 'stopped'
 
@@ -141,14 +141,16 @@ export default function AttendanceScannerPanel({ eventId }: AttendanceScannerPan
     if (payload?.type === 'member' && payload.code) {
       input.memberCode = payload.code
       input.qrEventId = eventId
-    } else if (payload?.type === 'event_attendance' && payload.code) {
+    } else if ((payload?.type === 'ticket' || payload?.type === 'event_attendance') && payload.code) {
       if (payload.event_id && eventId && payload.event_id !== eventId) {
         setState('error')
         setMessage('Event Mismatch')
         return
       }
-      input.registrationCode = payload.code
-      input.qrEventId = payload.event_id ?? eventId
+      setState('success')
+      setMessage('Ticket verified — registration details shown below (attendance not marked).')
+      setScanDetails(await fetchScanDetails(payload.code, undefined))
+      return
     } else if (payload?.code) {
       input.registrationCode = payload.code
     } else {
@@ -305,7 +307,7 @@ export default function AttendanceScannerPanel({ eventId }: AttendanceScannerPan
 
           {state === 'scanning' && (
             <p className="mt-3 text-center text-xs text-slate-400">
-              Scan the ticket QR or a member QR code (attendance will be marked for Round {round}).
+              Scan a ticket QR to verify registration, or a member/attendance QR to mark attendance for Round {round}.
             </p>
           )}
 
@@ -357,10 +359,6 @@ export default function AttendanceScannerPanel({ eventId }: AttendanceScannerPan
           </div>
         </div>
       </div>
-
-      <p className="mt-4 flex items-center justify-center gap-1.5 text-xs text-slate-400">
-        <Loader2 size={12} /> Attendance points are awarded automatically by the system.
-      </p>
 
       <div className="mt-3 text-center">
         <Badge tone={event?.registration_enabled ? 'green' : 'slate'}>

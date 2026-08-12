@@ -11,6 +11,7 @@ interface PublicMember {
   student_id: string | null
   department: string | null
   year_of_study: string | null
+  role: string | null
   team: string | null
   domain: string | null
   bio: string | null
@@ -65,11 +66,13 @@ export default function MemberPublic() {
 
   const social = member.social_links ?? {}
 
+  const isUser = member.role === 'user'
+
   const details: Array<{ label: string; value: string }> = [
     { label: 'Student Id', value: member.student_id ?? '' },
     { label: 'CIIE ID', value: member.ciie_id ?? '' },
-    ...(member.domain ? [{ label: 'Domain', value: member.domain }] : []),
-    ...(member.team ? [{ label: 'Position', value: member.team }] : []),
+    ...(!isUser && member.domain ? [{ label: 'Domain', value: member.domain }] : []),
+    ...(!isUser && member.team ? [{ label: 'Position', value: member.team }] : []),
     ...(member.department ? [{ label: 'Department', value: member.department }] : []),
     ...(member.year_of_study ? [{ label: 'Year of study', value: member.year_of_study }] : []),
     ...(member.phone ? [{ label: 'Phone', value: member.phone }] : []),
