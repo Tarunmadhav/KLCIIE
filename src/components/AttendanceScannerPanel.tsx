@@ -111,7 +111,7 @@ export default function AttendanceScannerPanel({ eventId }: AttendanceScannerPan
         { facingMode: 'environment' },
         { fps: 10, qrbox: { width: 240, height: 240 } },
         (decoded) => {
-          handleScan(decoded).catch(() => undefined)
+          processCode(decoded).catch(() => undefined)
         },
         () => undefined,
       )
@@ -128,58 +128,78 @@ export default function AttendanceScannerPanel({ eventId }: AttendanceScannerPan
     setState('stopped')
   }
 
-  const handleScan = async (decoded: string) => {
+  const processCode = async (raw: string) => {
     if (busyRef.current) return
-    let payload: { type?: string; code?: string; event_id?: string } | null = null
-    try {
-      payload = JSON.parse(decoded) as { type?: string; code?: string; event_id?: string }
-    } catch {
-      payload = null
-    }
-
-    const input: { registrationCode?: string; memberCode?: string; qrEventId?: string } = {}
-    if (payload?.type === 'member' && payload.code) {
-      input.memberCode = payload.code
-      input.qrEventId = eventId
-    } else if ((payload?.type === 'ticket' || payload?.type === 'event_attendance') && payload.code) {
-      if (payload.event_id && eventId && payload.event_id !== eventId) {
-        setState('error')
-        setMessage('Event Mismatch')
-        return
-      }
-      setState('success')
-      setMessage('Ticket verified — registration details shown below (attendance not marked).')
-      setScanDetails(await fetchScanDetails(payload.code, undefined))
-      return
-    } else if (payload?.code) {
-      input.registrationCode = payload.code
-    } else {
-      input.registrationCode = decoded.trim()
-    }
+    const trimmed = raw.trim()
+    if (!trimmed) return
 
     busyRef.current = true
-    const result = await markAttendance(input)
-    busyRef.current = false
-
-    if (result.ok) {
-      setState('success')
-      setMessage(result.message)
-      setScanDetails(await fetchScanDetails(result.registrationCode, result.memberId))
-    } else {
-      setState('error')
-      setMessage(result.message)
-      setScanDetails(null)
-    }
-    window.setTimeout(async () => {
-      if (scannerRef.current) {
-        try {
-          await scannerRef.current.resume()
-          setState('scanning')
-        } catch {
-          // already stopped
-        }
+    try {
+      let payload: { type?: string; code?: string; event_id?: string } | null = null
+      try {
+        payload = JSON.parse(trimmed) as { type?: string; code?: string; event_id?: string }
+      } catch {
+        payload = null
       }
-    }, 1800)
+
+      // Legacy ticket QR payload (printed before codes went opaque) — verify only.
+      if ((payload?.type === 'ticket' || payload?.type === 'event_attendance') && payload.code) {
+        if (payload.event_id && eventId && payload.event_id !== eventId) {
+          setState('error')
+          setMessage('No student registered for this event')
+          setScanDetails(null)
+          return
+        }
+        setState('success')
+        setMessage('Ticket verified — registration details shown below (attendance not marked).')
+        setScanDetails(await fetchScanDetails(payload.code, undefined))
+        return
+      }
+
+      const code = payload?.code ?? trimmed
+
+      // Any other code is tried as an attendance code first; if that fails it is
+      // looked up as a ticket/registration code and the details are shown instead.
+      const result =
+        payload?.type === 'member' && payload.code
+          ? await markAttendance({ memberCode: payload.code, qrEventId: eventId })
+          : await markAttendance({ memberCode: code, qrEventId: eventId })
+
+      if (result.ok) {
+        setState('success')
+        setMessage(result.message)
+        setScanDetails(await fetchScanDetails(result.registrationCode, result.memberId))
+        return
+      }
+
+      const details = await fetchScanDetails(code, undefined)
+      if (details) {
+        setState('success')
+        setMessage('Ticket verified — registration details shown below (attendance not marked).')
+        setScanDetails(details)
+        return
+      }
+
+      setState('error')
+      setMessage(
+        /event mismatch|no student registered|invalid attendance code|not registered/i.test(result.message)
+          ? 'No student registered for this event'
+          : result.message,
+      )
+      setScanDetails(null)
+    } finally {
+      busyRef.current = false
+      window.setTimeout(async () => {
+        if (scannerRef.current) {
+          try {
+            await scannerRef.current.resume()
+            setState('scanning')
+          } catch {
+            // already stopped
+          }
+        }
+      }, 1800)
+    }
   }
 
   const markAttendance = async (opts: {
@@ -200,7 +220,7 @@ export default function AttendanceScannerPanel({ eventId }: AttendanceScannerPan
     if (error) {
       const code = (error as { code?: string }).code
       if (code === 'EVTMIS' || /event mismatch/i.test(errorMessage(error))) {
-        return { ok: false, message: 'Event Mismatch' }
+        return { ok: false, message: 'No student registered for this event' }
       }
       return { ok: false, message: errorMessage(error) }
     }
@@ -251,18 +271,10 @@ export default function AttendanceScannerPanel({ eventId }: AttendanceScannerPan
   }
 
   const manualSubmit = async () => {
-    if (!manualCode.trim()) return
-    const result = await markAttendance({ registrationCode: manualCode.trim() })
+    const code = manualCode.trim()
+    if (!code) return
     setManualCode('')
-    if (result.ok) {
-      setState('success')
-      setMessage(result.message)
-      setScanDetails(await fetchScanDetails(result.registrationCode, result.memberId))
-    } else {
-      setState('error')
-      setMessage(result.message)
-      setScanDetails(null)
-    }
+    await processCode(code)
   }
 
   return (
@@ -351,11 +363,14 @@ export default function AttendanceScannerPanel({ eventId }: AttendanceScannerPan
           <div className="mt-5 border-t border-slate-200 pt-4">
             <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-400">Manual entry</p>
             <div className="flex gap-2">
-              <TextInput placeholder="REG-2026-000001" value={manualCode} onChange={(e) => setManualCode(e.target.value)} />
+              <TextInput placeholder="Paste the attendance QR code" value={manualCode} onChange={(e) => setManualCode(e.target.value)} />
               <button className="btn-secondary shrink-0" onClick={manualSubmit}>
                 Mark
               </button>
             </div>
+            <p className="mt-2 text-xs text-slate-400">
+              Ticket codes (REG-…) verify registration details — they never mark attendance.
+            </p>
           </div>
         </div>
       </div>

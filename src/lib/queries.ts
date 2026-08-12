@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import type { Event, EventTeamMember, LeaderboardRow } from '@/lib/types'
+import { isEventEnded } from '@/lib/utils'
 
 export interface LeaderboardFilters {
   academic_year?: string
@@ -50,7 +51,11 @@ export async function fetchPublishedEvents({
   query = query.order('start_date', { ascending: true })
   const { data, error } = await query
   if (error) return []
-  return (data ?? []) as Event[]
+  let events = (data ?? []) as Event[]
+  // Drop events whose end date/time has already passed so finished events stop
+  // showing in "Upcoming Events".
+  if (upcomingOnly) events = events.filter((e) => !isEventEnded(e))
+  return events
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i

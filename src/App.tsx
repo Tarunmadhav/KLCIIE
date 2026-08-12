@@ -2,8 +2,9 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from '@/hooks/useAuth'
 import { BrandingProvider } from '@/hooks/useBranding'
 import { SettingsProvider } from '@/hooks/useSettings'
-import { RequireAdmin, RequireAuth, RequireCiiieMember, RequireSuperAdmin } from '@/components/guards'
+import { RequireAdmin, RequireAuth, RequireCiiieMember, RequireSuperAdmin, MfaResetWatcher } from '@/components/guards'
 import { AuthLayout, PublicLayout } from '@/components/Layouts'
+import OfflineIndicator from '@/components/OfflineIndicator'
 
 import Home from '@/pages/Home'
 import About from '@/pages/About'
@@ -83,6 +84,8 @@ export default function App() {
       <SettingsProvider>
         <AuthProvider>
         <BrowserRouter>
+          <OfflineIndicator />
+          <MfaResetWatcher />
           <Routes>
             <Route element={<PublicLayout />}>
               <Route path="/" element={<Home />} />

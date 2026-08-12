@@ -1,16 +1,16 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CalendarClock, CheckCircle2, QrCode as QrIcon, RefreshCw } from 'lucide-react'
 import { Badge, PageLoader, SelectInput } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
 import { useBranding } from '@/hooks/useBranding'
-import { memberPayload, qrWithLogoDataUrl } from '@/lib/qr'
+import { qrWithLogoDataUrl } from '@/lib/qr'
 import { supabase } from '@/lib/supabase'
 import type { Event } from '@/lib/types'
-import { formatDate, formatDateTime } from '@/lib/utils'
+import { endOfDayMs, formatDate, formatDateTime, isEventEnded as isEventEndedFn, kolkataMs } from '@/lib/utils'
 
 interface RegisteredEvent {
   event_id: string
-  event?: Pick<Event, 'id' | 'title' | 'start_date' | 'start_time' | 'end_time'> | null
+  event?: Pick<Event, 'id' | 'title' | 'start_date' | 'start_time' | 'end_date' | 'end_time' | 'status'> | null
 }
 
 interface RoundInfo {
@@ -24,11 +24,14 @@ interface RoundInfo {
 
 interface QrInfo {
   started: boolean
+  closed?: boolean
   attendance_rounds?: number
   rounds?: RoundInfo[]
   event_title?: string
   start_date?: string
   start_time?: string
+  end_date?: string
+  end_time?: string
   error?: string
 }
 
@@ -48,6 +51,18 @@ export default function MemberQrPage() {
   const [memberCode, setMemberCode] = useState('')
   const [loading, setLoading] = useState(true)
   const [qrLoading, setQrLoading] = useState(false)
+  const [copied, setCopied] = useState<string | null>(null)
+  const [nowTick, setNowTick] = useState(0)
+
+  const copyCode = async (code: string) => {
+    try {
+      await navigator.clipboard.writeText(code)
+      setCopied(code)
+      window.setTimeout(() => setCopied((c) => (c === code ? null : c)), 2000)
+    } catch {
+      // clipboard unavailable
+    }
+  }
 
   useEffect(() => {
     if (!user) return
@@ -56,7 +71,7 @@ export default function MemberQrPage() {
       const [{ data }, { data: memberData }] = await Promise.all([
         supabase
           .from('event_registrations')
-          .select('event_id, event:events(id, title, start_date, start_time, end_time)')
+          .select('event_id, event:events(id, title, start_date, start_time, end_date, end_time, status)')
           .eq('member_id', user.id)
           .eq('status', 'confirmed'),
         supabase.from('member_qr_codes').select('code').eq('member_id', user.id).maybeSingle(),
@@ -67,9 +82,7 @@ export default function MemberQrPage() {
       const c = (memberData as { code?: string } | null)?.code
       if (c) {
         setMemberCode(c)
-        setMemberQr(
-          await qrWithLogoDataUrl(memberPayload({ type: 'member', v: 1, member_id: user.id, code: c }), logoUrl, 400),
-        )
+        setMemberQr(await qrWithLogoDataUrl(c, logoUrl, 400))
       }
       setLoading(false)
     }
@@ -86,34 +99,79 @@ export default function MemberQrPage() {
 
   const selectedEvent = useMemo(() => rows.find((r) => r.event_id === eventId)?.event ?? null, [rows, eventId])
 
-  const refreshQr = async (id: string) => {
-    if (!id) return
-    setQrLoading(true)
-    const { data, error } = await supabase.rpc('get_my_event_attendance_qr', { p_event_id: id })
-    setQrLoading(false)
-    if (error) {
-      console.error('get_my_event_attendance_qr error:', error)
-      setQrInfo({ started: false, attendance_rounds: 1, rounds: [], error: error.message })
-      return
-    }
-    const info = (data ?? {}) as QrInfo
-    setQrInfo(info)
-    if (info.started && user) {
-      const map: Record<number, string> = {}
-      for (const r of info.rounds ?? []) {
-        if (r.code) {
-          map[r.round] = await qrWithLogoDataUrl(
-            memberPayload({ type: 'member', v: 1, member_id: user.id, code: r.code }),
-            logoUrl,
-            240,
-          )
-        }
+  const refreshQr = useCallback(
+    async (id: string, silent = false) => {
+      if (!id) return
+      if (!silent) setQrLoading(true)
+      const { data, error } = await supabase.rpc('get_my_event_attendance_qr', { p_event_id: id })
+      if (!silent) setQrLoading(false)
+      if (error) {
+        console.error('get_my_event_attendance_qr error:', error)
+        setQrInfo({ started: false, attendance_rounds: 1, rounds: [], error: error.message })
+        return
       }
-      setQrMap(map)
-    } else {
-      setQrMap({})
+      const info = (data ?? {}) as QrInfo
+      setQrInfo(info)
+      if (info.started && user) {
+        const map: Record<number, string> = {}
+        for (const r of info.rounds ?? []) {
+          if (r.code) {
+            map[r.round] = await qrWithLogoDataUrl(r.code, logoUrl, 240)
+          }
+        }
+        setQrMap(map)
+      } else {
+        setQrMap({})
+      }
+    },
+    [user, logoUrl],
+  )
+
+  useEffect(() => {
+    if (!eventId) return
+    const channel = supabase
+      .channel(`member-qr-live-${eventId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'attendance', filter: `event_id=eq.${eventId}` },
+        () => void refreshQr(eventId, true),
+      )
+      .subscribe()
+    return () => {
+      supabase.removeChannel(channel)
     }
-  }
+  }, [eventId, refreshQr])
+
+  // Auto-transition at the event's start and end times: the QR appears the
+  // moment the event starts and closes once it ends — no manual refresh. The
+  // end time is also read from the event row so this works even if the server
+  // RPC hasn't been updated to report the closed state yet.
+  useEffect(() => {
+    if (!eventId) return
+    const transitions: number[] = []
+    const startDate = qrInfo?.start_date ?? selectedEvent?.start_date
+    const startTime = qrInfo?.start_time ?? selectedEvent?.start_time ?? null
+    const endDate = qrInfo?.end_date ?? selectedEvent?.end_date
+    const endTime = qrInfo?.end_time ?? selectedEvent?.end_time ?? null
+    if (startDate) transitions.push(kolkataMs(startDate, startTime))
+    if (endDate) transitions.push(endTime ? kolkataMs(endDate, endTime) : endOfDayMs(endDate))
+    const now = Date.now()
+    const next = transitions.filter((t) => t > now).sort((a, b) => a - b)[0]
+    if (next == null) return
+    const id = window.setTimeout(() => {
+      setNowTick((n) => n + 1)
+      void refreshQr(eventId, true)
+    }, next - now + 500)
+    return () => window.clearTimeout(id)
+  }, [eventId, qrInfo, selectedEvent, refreshQr])
+
+  // Client-side "event ended" check — an immediate fallback that doesn't
+  // depend on the server RPC reporting the closed state.
+  const eventEnded = useMemo(() => isEventEndedFn(selectedEvent), [selectedEvent, nowTick])
+
+  const qrClosed = !!qrInfo?.closed || eventEnded
+  const endDate = qrInfo?.end_date ?? selectedEvent?.end_date ?? null
+  const endTime = qrInfo?.end_time ?? selectedEvent?.end_time ?? null
 
   const onSelectEvent = (id: string) => {
     setEventId(id)
@@ -139,7 +197,8 @@ export default function MemberQrPage() {
     <div className="max-w-md">
       <h1 className="text-2xl font-extrabold text-slate-900">QR Attendance</h1>
       <p className="mt-1 text-sm text-slate-500">
-        Pick a registered event to get its attendance QR. Show it to a CIIE member on duty to be marked present.
+        Pick a registered event to get its attendance QR. Show it to a CIIE member on duty to be marked present — the
+        code below each QR can also be typed into the scanner.
       </p>
 
       <div className="card mt-6 p-5">
@@ -166,7 +225,21 @@ export default function MemberQrPage() {
 
         {!qrLoading && eventId && selectedEvent && qrInfo && (
           <div className="mt-5">
-            {qrInfo.started ? (
+            {qrClosed ? (
+              <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+                <p className="font-semibold">Event closed.</p>
+                <p className="mt-1 text-xs text-red-600">
+                  Attendance for this event has ended
+                  {endDate ? ` — ${formatDate(endDate)}${endTime ? ` · ${endTime}` : ''}` : ''}. No more QR codes are
+                  issued and attendance can no longer be marked.
+                </p>
+                {qrInfo.error && (
+                  <p className="mt-2 rounded bg-red-50 px-2 py-1 text-xs font-medium text-red-600">
+                    Server error: {qrInfo.error}
+                  </p>
+                )}
+              </div>
+            ) : qrInfo.started ? (
               <div>
                 <div className="mb-3 text-center text-sm font-bold text-slate-700">
                   {(qrInfo.attendance_rounds ?? 1) > 1
@@ -176,6 +249,7 @@ export default function MemberQrPage() {
                 <div className="grid grid-cols-2 gap-3">
                   {(qrInfo.rounds ?? []).map((r) => {
                     const dataUrl = qrMap[r.round]
+                    const code = r.code
                     return (
                       <div key={r.round} className="rounded-2xl border-2 border-slate-200 bg-white p-3 text-center">
                         <div className="relative mx-auto w-fit">
@@ -200,12 +274,22 @@ export default function MemberQrPage() {
                         ) : (
                           <Badge tone="slate">Not scanned yet</Badge>
                         )}
+                        {code && (
+                          <button
+                            type="button"
+                            onClick={() => copyCode(code)}
+                            className="mt-2 w-full break-all rounded-lg bg-slate-100 px-2 py-1.5 font-mono text-[10px] font-bold tracking-wider text-slate-600 transition hover:bg-slate-200"
+                            title="Copy attendance code"
+                          >
+                            {copied === code ? 'Copied!' : code}
+                          </button>
+                        )}
                       </div>
                     )
                   })}
                 </div>
                 <p className="mt-3 flex items-center justify-center gap-1.5 rounded-xl bg-slate-100 px-4 py-3 text-xs text-slate-500">
-                  <QrIcon size={15} /> Each round QR is refreshed automatically once attendance is marked.
+                  <QrIcon size={15} /> Updates live — the moment a CIIE member marks you present, the tick appears and the QR refreshes automatically.
                 </p>
                 <button className="btn-secondary mt-3 w-full" onClick={() => refreshQr(eventId)}>
                   <RefreshCw size={14} /> Refresh QRs

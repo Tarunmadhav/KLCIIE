@@ -32,14 +32,38 @@ export function initials(name: string | null | undefined): string {
     .join('')
 }
 
-export function isUpcoming(event: { start_date: string; status?: string }): boolean {
-  return (event.status ?? 'published') !== 'completed' && new Date(event.start_date) >= startOfToday()
+export function isUpcoming(event: { start_date: string; end_date?: string | null; end_time?: string | null; status?: string }): boolean {
+  return !isEventEnded(event) && new Date(event.start_date) >= startOfToday()
 }
 
 export function startOfToday(): Date {
   const d = new Date()
   d.setHours(0, 0, 0, 0)
   return d
+}
+
+// Event start/end dates and times are entered in Asia/Kolkata (UTC+5:30).
+// These helpers convert that wall-clock time to a UTC epoch so client-side
+// "is this event still upcoming?" checks match the server.
+export function kolkataMs(date: string, time?: string | null): number {
+  const [y, m, d] = date.split('-').map(Number)
+  const [hh, mm] = (time || '00:00').split(':').map(Number)
+  return Date.UTC(y, m - 1, d, hh - 5, mm - 30, 0)
+}
+
+export function endOfDayMs(date: string): number {
+  const [y, m, d] = date.split('-').map(Number)
+  return Date.UTC(y, m - 1, d, 18, 29, 59)
+}
+
+/** True once the event's end date/time has passed, or it is marked done/cancelled. */
+export function isEventEnded(
+  event: { end_date?: string | null; end_time?: string | null; status?: string } | null | undefined,
+): boolean {
+  if (!event) return false
+  if (event.status === 'completed' || event.status === 'cancelled') return true
+  if (!event.end_date) return false
+  return Date.now() >= (event.end_time ? kolkataMs(event.end_date, event.end_time) : endOfDayMs(event.end_date))
 }
 
 export function seatsRemaining(event: { seats: number; registrations?: number }): number {

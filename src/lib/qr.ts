@@ -1,31 +1,9 @@
 import QRCode from 'qrcode'
 
-// Ticket QR payloads. The ticket QR is for verification only — scanning it at
-// the venue shows registration details but never marks attendance. Attendance
-// is marked by scanning the per-round member/attendance QR codes instead.
-export interface ParticipantPayload {
-  type: 'ticket'
-  v: 1
-  event_id: string
-  registration_id: string
-  code: string
-}
-
-export interface MemberPayload {
-  type: 'member'
-  v: 1
-  member_id: string
-  code: string
-}
-
-export function participantPayload(data: ParticipantPayload): string {
-  return JSON.stringify(data)
-}
-
-export function memberPayload(data: MemberPayload): string {
-  return JSON.stringify(data)
-}
-
+// QRs encode opaque codes only (attendance codes / REG- ticket codes). Personal
+// data is never embedded in the QR content, so an external scanner (phone
+// camera, USB scanner, etc.) shows no attendee details — registration details
+// are only fetched and displayed by the CIIE website scanner.
 /**
  * Plain QR data URL (no logo) — used for the ticket so it always scans.
  */

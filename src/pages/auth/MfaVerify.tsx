@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
 
 export default function MfaVerify() {
-  const { user, profile, mfa, refreshProfile, isAdmin } = useAuth()
+  const { user, profile, mfa, adminMfaVerified, markAdminMfaVerified, refreshProfile, isAdmin } = useAuth()
   const navigate = useNavigate()
   const [code, setCode] = useState('')
   const [recoveryCode, setRecoveryCode] = useState('')
@@ -15,7 +15,7 @@ export default function MfaVerify() {
   const [busy, setBusy] = useState(false)
 
   if (!user || !profile || !isAdmin) return <Navigate to="/login" replace />
-  if (mfa && mfa.aal === 'aal2') return <Navigate to="/admin" replace />
+  if (mfa && mfa.aal === 'aal2' && adminMfaVerified) return <Navigate to="/admin" replace />
   if (mfa && !mfa.hasVerifiedFactor) return <Navigate to="/auth/mfa-setup" replace />
 
   const submitCode = async (e: FormEvent) => {
@@ -49,6 +49,7 @@ export default function MfaVerify() {
       p_entity_type: 'admin',
       p_entity_id: user.id,
     })
+    markAdminMfaVerified()
     await refreshProfile()
     navigate('/admin', { replace: true })
   }

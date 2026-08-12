@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useEffect, useRef } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { isAdminRole } from '@/lib/types'
@@ -8,14 +9,40 @@ import { PageLoader } from '@/components/ui'
  * Returns the MFA route an admin must visit before the Admin Console,
  * or null when they are clear to proceed. Every admin role is MFA-gated;
  * non-admin roles sign in with just email + password.
+ *
+ * An admin must re-verify MFA each time they enter the Admin Console
+ * (`adminMfaVerified` is reset when they navigate away), not just once
+ * per session.
  */
 export function useMfaRedirect(): string | null {
-  const { profile, mfa } = useAuth()
+  const { profile, mfa, adminMfaVerified } = useAuth()
   if (!profile || !isAdminRole(profile.role)) return null
   if (profile.mfa_setup_required) return '/auth/mfa-setup'
   if (!mfa) return null
   if (!mfa.hasVerifiedFactor) return '/auth/mfa-setup'
   if (mfa.aal !== 'aal2') return '/auth/mfa-verify'
+  if (!adminMfaVerified) return '/auth/mfa-verify'
+  return null
+}
+
+/**
+ * Renders nothing. Watches route changes and clears the admin MFA
+ * verification flag whenever the user leaves the Admin Console, so the
+ * next time they open it they are asked to verify again.
+ */
+export function MfaResetWatcher() {
+  const location = useLocation()
+  const { resetAdminMfa } = useAuth()
+  const prevPath = useRef(location.pathname)
+
+  useEffect(() => {
+    const prev = prevPath.current
+    prevPath.current = location.pathname
+    if (prev.startsWith('/admin') && !location.pathname.startsWith('/admin')) {
+      resetAdminMfa()
+    }
+  }, [location.pathname, resetAdminMfa])
+
   return null
 }
 

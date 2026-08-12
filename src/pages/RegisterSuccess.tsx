@@ -5,7 +5,7 @@ import Logo from '@/components/Logo'
 import { PageLoader } from '@/components/ui'
 import { useBranding } from '@/hooks/useBranding'
 import { useAuth } from '@/hooks/useAuth'
-import { participantPayload, qrWithLogoDataUrl } from '@/lib/qr'
+import { qrWithLogoDataUrl } from '@/lib/qr'
 import { supabase } from '@/lib/supabase'
 import type { EventRegistration } from '@/lib/types'
 import { formatDate } from '@/lib/utils'
@@ -38,14 +38,7 @@ export default function RegisterSuccess() {
       if (active) {
         setReg(r)
         setEvent((ev as { title: string; start_date: string } | null) ?? null)
-        const payload = participantPayload({
-          type: 'ticket',
-          v: 1,
-          event_id: r.event_id,
-          registration_id: r.id,
-          code: r.registration_code,
-        })
-        setQr(await qrWithLogoDataUrl(payload, branding.qr_attendance_logo_url ?? branding.ciie_logo_url ?? '/logo.jpg'))
+        setQr(await qrWithLogoDataUrl(r.registration_code, branding.qr_attendance_logo_url ?? branding.ciie_logo_url ?? '/logo.jpg'))
         setLoading(false)
       }
     }

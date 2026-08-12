@@ -10,7 +10,7 @@ import { downloadTextFile, errorMessage } from '@/lib/utils'
 type Step = 'intro' | 'enroll' | 'recovery' | 'done'
 
 export default function MfaSetup() {
-  const { user, profile, mfa, refreshProfile, isAdmin } = useAuth()
+  const { user, profile, mfa, markAdminMfaVerified, refreshProfile, isAdmin } = useAuth()
   const navigate = useNavigate()
   const [step, setStep] = useState<Step>('intro')
   const [qrData, setQrData] = useState('')
@@ -109,6 +109,7 @@ export default function MfaSetup() {
       return
     }
     await refreshProfile()
+    markAdminMfaVerified()
     setStep('done')
   }
 
