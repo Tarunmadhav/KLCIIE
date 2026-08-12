@@ -1,0 +1,196 @@
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { Shield, ShieldAlert, UserPlus, UserX } from 'lucide-react'
+import { Avatar, Badge, Button, EmptyState, Field, PageHeader, PageLoader, SelectInput } from '@/components/ui'
+import { useAuth } from '@/hooks/useAuth'
+import { supabase } from '@/lib/supabase'
+import { ADMIN_ROLES, ROLE_LABELS, type Profile } from '@/lib/types'
+import { errorMessage, formatDate } from '@/lib/utils'
+
+type AdminRow = Profile
+
+export default function Admins() {
+  const { user, isSuperAdmin } = useAuth()
+  const [admins, setAdmins] = useState<AdminRow[]>([])
+  const [members, setMembers] = useState<Profile[]>([])
+  const [memberId, setMemberId] = useState('')
+  const [newRole, setNewRole] = useState<typeof ADMIN_ROLES[number]>('event_admin')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
+
+  const load = async () => {
+    const [{ data: adminData }, { data: memberData }] = await Promise.all([
+      supabase.from('profiles').select('*').in('role', ADMIN_ROLES).order('full_name'),
+      supabase.from('profiles').select('id, full_name, ciie_id, email, status').eq('role', 'member').eq('status', 'active').order('full_name'),
+    ])
+    setAdmins((adminData ?? []) as AdminRow[])
+    setMembers((memberData ?? []) as Profile[])
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    load()
+  }, [])
+
+  const filteredMembers = useMemo(() => {
+    if (!memberId) return members.slice(0, 30)
+    return members.slice(0, 30)
+  }, [members, memberId])
+
+  const promote = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!memberId) {
+      setError('Choose a member to promote.')
+      return
+    }
+    setBusy(true)
+    setError('')
+    const { error } = await supabase
+      .from('profiles')
+      .update({ role: newRole, status: 'active', mfa_setup_required: true })
+      .eq('id', memberId)
+    setBusy(false)
+    if (error) {
+      setError(errorMessage(error))
+      return
+    }
+    await supabase.rpc('log_admin_event', { p_action: 'Admin Promoted', p_entity_type: 'admin', p_entity_id: memberId, p_details: { role: newRole } })
+    setMemberId('')
+    load()
+  }
+
+  const changeRole = async (admin: AdminRow) => {
+    if (!isSuperAdmin) return
+    const role = window.prompt(`New role for ${admin.full_name}:`, admin.role)
+    if (!role || !(ADMIN_ROLES as string[]).includes(role)) return
+    const { error } = await supabase.from('profiles').update({ role }).eq('id', admin.id)
+    if (error) {
+      setError(errorMessage(error))
+      return
+    }
+    await supabase.rpc('log_admin_event', { p_action: 'Admin Role Changed', p_entity_type: 'admin', p_entity_id: admin.id, p_details: { role } })
+    load()
+  }
+
+  const demote = async (admin: AdminRow) => {
+    if (!isSuperAdmin) return
+    if (!window.confirm(`Remove admin access from ${admin.full_name}?`)) return
+    const { error } = await supabase.from('profiles').update({ role: 'member', mfa_setup_required: false }).eq('id', admin.id)
+    if (error) {
+      setError(errorMessage(error))
+      return
+    }
+    await supabase.rpc('log_admin_event', { p_action: 'Admin Demoted', p_entity_type: 'admin', p_entity_id: admin.id })
+    load()
+  }
+
+  const resetMfa = async (admin: AdminRow) => {
+    if (!isSuperAdmin) return
+    if (!window.confirm(`Force ${admin.full_name} to reconfigure MFA? Their existing recovery codes will be revoked.`)) return
+    const { error } = await supabase.rpc('reset_admin_mfa', { p_admin_id: admin.id })
+    if (error) {
+      setError(errorMessage(error))
+      return
+    }
+    load()
+  }
+
+  if (loading) return <PageLoader />
+
+  return (
+    <div className="max-w-4xl">
+      <PageHeader
+        title="Admins & MFA"
+        subtitle={isSuperAdmin ? 'Promote members, change roles and manage MFA enforcement.' : 'View only — only a Super Admin can manage admins.'}
+      />
+
+      {isSuperAdmin && (
+        <div className="card mb-6 p-5">
+          <h2 className="flex items-center gap-2 text-base font-bold text-slate-900">
+            <UserPlus size={16} className="text-primary-600" /> Promote member
+          </h2>
+          <form onSubmit={promote} className="mt-4 flex flex-wrap items-end gap-3">
+            <div className="min-w-64 flex-1">
+              <Field label="Member">
+                <SelectInput value={memberId} onChange={(e) => setMemberId(e.target.value)}>
+                  <option value="">Select member…</option>
+                  {filteredMembers.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.full_name} {m.ciie_id ? `(${m.ciie_id})` : ''}
+                    </option>
+                  ))}
+                </SelectInput>
+              </Field>
+            </div>
+            <div className="min-w-48">
+              <Field label="Admin role">
+                <SelectInput value={newRole} onChange={(e) => setNewRole(e.target.value as typeof newRole)}>
+                  {ADMIN_ROLES.map((r) => (
+                    <option key={r} value={r}>
+                      {ROLE_LABELS[r]}
+                    </option>
+                  ))}
+                </SelectInput>
+              </Field>
+            </div>
+            <Button type="submit" disabled={busy}>
+              Promote
+            </Button>
+          </form>
+          <p className="mt-2 text-xs text-slate-400">
+            Promoted admins are flagged <code>mfa_setup_required</code> — they must complete MFA on their next login.
+          </p>
+        </div>
+      )}
+
+      {error && <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+
+      {admins.length === 0 ? (
+        <EmptyState icon={<Shield size={40} />} title="No admins yet" subtitle="Promote the first member to Super Admin from the SQL seed." />
+      ) : (
+        <div className="card overflow-hidden">
+          <div className="divide-y divide-slate-100">
+            {admins.map((a) => (
+              <div key={a.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+                <div className="flex items-center gap-3">
+                  <Avatar name={a.full_name} src={a.avatar_url} className="h-10 w-10 text-sm" />
+                  <div>
+                    <p className="flex items-center gap-2 font-semibold text-slate-900">
+                      {a.full_name}
+                      {a.id === user?.id && <Badge tone="primary">you</Badge>}
+                      {a.role === 'super_admin' && <ShieldAlert size={14} className="text-amber-500" />}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      {ROLE_LABELS[a.role]} • {a.email ?? ''} • last login {formatDate(a.last_login_at)}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge tone={a.mfa_enabled ? 'green' : 'red'}>{a.mfa_enabled ? 'MFA active' : 'MFA not set'}</Badge>
+                  {a.mfa_setup_required && <Badge tone="amber">MFA required</Badge>}
+                  {isSuperAdmin && (
+                    <>
+                      <Button variant="ghost" className="!px-2.5 !py-1" onClick={() => changeRole(a)}>
+                        Change role
+                      </Button>
+                      {a.id !== user?.id && (
+                        <Button variant="ghost" className="!px-2.5 !py-1" onClick={() => resetMfa(a)} disabled={!a.mfa_enabled}>
+                          Reset MFA
+                        </Button>
+                      )}
+                      {a.id !== user?.id && (
+                        <Button variant="ghost" className="!px-2.5 !py-1 text-red-500" onClick={() => demote(a)} disabled={a.role === 'super_admin'}>
+                          <UserX size={14} /> Remove
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

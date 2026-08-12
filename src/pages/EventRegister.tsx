@@ -1,0 +1,182 @@
+import { useEffect, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Ticket } from 'lucide-react'
+import { Button, Field, PageLoader, SelectInput, Spinner, TextInput, TextArea } from '@/components/ui'
+import { useAuth } from '@/hooks/useAuth'
+import { fetchEvent } from '@/lib/queries'
+import { supabase } from '@/lib/supabase'
+import type { Event } from '@/lib/types'
+import { errorMessage, seatsRemaining } from '@/lib/utils'
+
+interface FormField {
+  key: string
+  label: string
+  type: 'text' | 'number' | 'select' | 'textarea'
+  required: boolean
+  options?: string[]
+}
+
+export default function EventRegister() {
+  const { id } = useParams<{ id: string }>()
+  const { user, profile } = useAuth()
+  const navigate = useNavigate()
+  const [event, setEvent] = useState<Event | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  const [name, setName] = useState('')
+  const [studentId, setStudentId] = useState('')
+  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
+  const [department, setDepartment] = useState('')
+  const [year, setYear] = useState('')
+  const [college, setCollege] = useState('')
+  const [answers, setAnswers] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    if (!id) return
+    fetchEvent(id).then((ev) => {
+      setEvent(ev)
+      setLoading(false)
+      if (ev) {
+        if (user && profile) {
+          setName(profile.full_name ?? '')
+          setStudentId(profile.student_id ?? '')
+          setEmail(user.email ?? '')
+        }
+      }
+    })
+  }, [id, user, profile])
+
+  if (loading) return <PageLoader />
+  if (!event) {
+    return (
+      <div className="container-page py-20 text-center">
+        <p className="text-lg font-semibold">Event not found</p>
+        <Link to="/events" className="btn-primary mt-4">
+          Browse events
+        </Link>
+      </div>
+    )
+  }
+
+  const fields = (event.form_fields as unknown as FormField[]) ?? []
+  const submit = async () => {
+    if (!name.trim() || !studentId.trim() || !email.trim()) {
+      setError('Please fill in your name, student ID and email.')
+      setBusy(false)
+      return
+    }
+    setBusy(true)
+    setError('')
+    const formData: Record<string, unknown> = { ...answers }
+    for (const f of fields) {
+      if (f.required && !answers[f.key]) {
+        setError(`"${f.label}" is required.`)
+        setBusy(false)
+        return
+      }
+      if (answers[f.key]) formData[f.key] = answers[f.key]
+    }
+    const { data, error: err } = await supabase.rpc('create_registration', {
+      p_event_id: event.id,
+      p_attendee_name: name.trim(),
+      p_student_id: studentId.trim(),
+      p_email: email.trim(),
+      p_phone: phone.trim() || null,
+      p_department: department.trim() || null,
+      p_year_of_study: year.trim() || null,
+      p_college: college.trim() || null,
+      p_form_data: formData,
+    })
+    setBusy(false)
+    if (err) {
+      setError(errorMessage(err))
+      return
+    }
+    if (data) {
+      navigate(`/register/success/${(data as { id: string }).id}`)
+    }
+  }
+
+  return (
+    <div className="container-page max-w-2xl py-10">
+      <Link to={`/events/${event.slug ?? event.id}`} className="text-sm font-medium text-primary-600 hover:underline">
+        ← Back to event
+      </Link>
+      <h1 className="mt-3 text-2xl font-extrabold text-slate-900">Register for {event.title}</h1>
+      <p className="mt-1 text-sm text-slate-500">
+        {event.mode === 'offline' ? event.venue : 'Online event'} • {seatsRemaining(event)} seats remaining
+      </p>
+
+      <form onSubmit={submit} className="card mt-6 space-y-4 p-6">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Full name">
+            <TextInput required value={name} onChange={(e) => setName(e.target.value)} placeholder="Rahul Kumar" />
+          </Field>
+          <Field label="Student ID (university roll number)">
+            <TextInput required value={studentId} onChange={(e) => setStudentId(e.target.value)} placeholder="e.g. 2300123456" />
+          </Field>
+          <Field label="Email">
+            <TextInput type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+          </Field>
+          <Field label="Phone">
+            <TextInput value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 ..." />
+          </Field>
+          <Field label="Department">
+            <TextInput value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="CSE" />
+          </Field>
+          <Field label="Year of study">
+            <SelectInput value={year} onChange={(e) => setYear(e.target.value)}>
+              <option value="">Select year</option>
+              <option>1st Year</option>
+              <option>2nd Year</option>
+              <option>3rd Year</option>
+              <option>4th Year</option>
+            </SelectInput>
+          </Field>
+          <Field label="College / Institution">
+            <TextInput value={college} onChange={(e) => setCollege(e.target.value)} placeholder="KL University" />
+          </Field>
+        </div>
+
+        {fields.length > 0 && (
+          <div className="border-t border-slate-200 pt-4">
+            <h3 className="mb-3 text-sm font-bold text-slate-900">Additional questions</h3>
+            <div className="grid gap-4">
+              {fields.map((f) => (
+                <Field key={f.key} label={`${f.label}${f.required ? ' *' : ''}`}>
+                  {f.type === 'textarea' ? (
+                    <TextArea value={answers[f.key] ?? ''} onChange={(e) => setAnswers({ ...answers, [f.key]: e.target.value })} rows={3} />
+                  ) : f.type === 'select' ? (
+                    <SelectInput value={answers[f.key] ?? ''} onChange={(e) => setAnswers({ ...answers, [f.key]: e.target.value })}>
+                      <option value="">Select…</option>
+                      {(f.options ?? []).map((o) => (
+                        <option key={o} value={o}>
+                          {o}
+                        </option>
+                      ))}
+                    </SelectInput>
+                  ) : (
+                    <TextInput
+                      type={f.type === 'number' ? 'number' : 'text'}
+                      value={answers[f.key] ?? ''}
+                      onChange={(e) => setAnswers({ ...answers, [f.key]: e.target.value })}
+                    />
+                  )}
+                </Field>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+
+        <Button type="submit" disabled={busy} className="w-full">
+          {busy ? <Spinner className="border-white/40 border-t-white" /> : <><Ticket size={16} /> Confirm registration</>}
+        </Button>
+      </form>
+    </div>
+  )
+}

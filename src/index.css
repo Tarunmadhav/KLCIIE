@@ -1,0 +1,285 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-primary-50: #f5f3ff;
+  --color-primary-100: #ede9fe;
+  --color-primary-200: #ddd6fe;
+  --color-primary-300: #c4b5fd;
+  --color-primary-400: #a78bfa;
+  --color-primary-500: #8b5cf6;
+  --color-primary-600: #7c3aed;
+  --color-primary-700: #6d28d9;
+  --color-primary-800: #5b21b6;
+  --color-primary-900: #4c1d95;
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Plus Jakarta Sans', 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 antialiased;
+  background-image:
+    radial-gradient(1200px 500px at 85% -10%, rgba(124, 58, 237, 0.09), transparent 60%),
+    radial-gradient(900px 420px at -10% 15%, rgba(16, 185, 129, 0.07), transparent 55%);
+  background-attachment: fixed;
+}
+
+::selection {
+  @apply bg-primary-600 text-white;
+}
+
+.container-page {
+  @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+}
+
+.btn {
+  @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+.btn-primary {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-primary-600/25 transition hover:bg-primary-700 hover:shadow-md hover:shadow-primary-600/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+.btn-secondary {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+.btn-danger {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-red-600/25 transition hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+.btn-ghost {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+.input {
+  @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200 disabled:bg-slate-50;
+}
+
+.label {
+  @apply mb-1 block text-sm font-medium text-slate-700;
+}
+
+.card {
+  @apply rounded-2xl border border-slate-200/80 bg-white shadow-sm transition hover:shadow-md;
+}
+
+.text-gradient {
+  @apply bg-gradient-to-r from-primary-600 via-primary-500 to-emerald-500 bg-clip-text text-transparent;
+}
+
+.badge-green {
+  @apply inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-700;
+}
+
+.badge-amber {
+  @apply inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700;
+}
+
+.badge-red {
+  @apply inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700;
+}
+
+.badge-slate {
+  @apply inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600;
+}
+
+.badge-primary {
+  @apply inline-flex items-center gap-1 rounded-full bg-primary-100 px-2.5 py-0.5 text-xs font-semibold text-primary-700;
+}
+
+/* ---------------------------------------------------------------------------
+   Glassmorphism
+--------------------------------------------------------------------------- */
+.glass {
+  @apply border border-white/15 bg-white/10 backdrop-blur-xl;
+}
+
+.glass-card {
+  @apply rounded-2xl border border-slate-200/70 bg-white/70 backdrop-blur-xl transition duration-300 hover:border-primary-300/80 hover:shadow-xl hover:shadow-primary-600/10;
+}
+
+.text-gradient-animated {
+  @apply bg-gradient-to-r from-primary-400 via-emerald-300 to-sky-400 bg-clip-text text-transparent;
+  background-size: 200% 200%;
+  animation: gradient-pan 8s ease infinite;
+}
+
+/* ---------------------------------------------------------------------------
+   Keyframe animations
+--------------------------------------------------------------------------- */
+@keyframes float-y {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-18px);
+  }
+}
+
+@keyframes float-y-lg {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-1.5deg);
+  }
+  50% {
+    transform: translateY(-28px) rotate(1.5deg);
+  }
+}
+
+@keyframes orb-drift-1 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(60px, -40px) scale(1.15);
+  }
+  66% {
+    transform: translate(-40px, 30px) scale(0.92);
+  }
+}
+
+@keyframes orb-drift-2 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  40% {
+    transform: translate(-50px, 50px) scale(1.1);
+  }
+  75% {
+    transform: translate(40px, -30px) scale(0.9);
+  }
+}
+
+@keyframes gradient-pan {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes scroll-hint {
+  0% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  70% {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.animate-float-y {
+  animation: float-y 6s ease-in-out infinite;
+}
+
+.animate-float-y-lg {
+  animation: float-y-lg 8s ease-in-out infinite;
+}
+
+.animate-orb-1 {
+  animation: orb-drift-1 18s ease-in-out infinite;
+}
+
+.animate-orb-2 {
+  animation: orb-drift-2 22s ease-in-out infinite;
+}
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient-pan 8s ease infinite;
+}
+
+.animate-marquee {
+  animation: marquee 32s linear infinite;
+}
+
+.animate-scroll-hint {
+  animation: scroll-hint 2s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  background-size: 200% 100%;
+  animation: shimmer 3s linear infinite;
+}
+
+/* ---------------------------------------------------------------------------
+   Scroll-reveal
+--------------------------------------------------------------------------- */
+.reveal {
+  opacity: 0;
+  transform: translateY(2.5rem);
+  transition:
+    opacity 0.8s ease,
+    transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+
+.reveal[data-variant='left'] {
+  transform: translateX(-2.5rem);
+}
+
+.reveal[data-variant='right'] {
+  transform: translateX(2.5rem);
+}
+
+.reveal[data-variant='zoom'] {
+  transform: scale(0.94);
+}
+
+.reveal-visible {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* ---------------------------------------------------------------------------
+   Accessibility: respect reduced-motion preferences
+--------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none;
+  }
+  .animate-orb-1,
+  .animate-orb-2,
+  .animate-float-y,
+  .animate-float-y-lg,
+  .animate-gradient,
+  .animate-marquee,
+  .animate-scroll-hint,
+  .animate-shimmer {
+    animation: none !important;
+  }
+}
