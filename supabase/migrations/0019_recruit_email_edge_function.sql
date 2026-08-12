@@ -24,7 +24,9 @@ drop table if exists public.recruit_smtp_settings;
 
 -- ---------------------------------------------------------------------------
 -- 2) SELECT RECRUIT — mark selected and return the email payload (no sending)
+--    0018 returned uuid; dropping first so the return type can change to jsonb.
 -- ---------------------------------------------------------------------------
+drop function if exists public.select_recruit(uuid, text);
 create or replace function public.select_recruit(
   p_application_id uuid,
   p_message text

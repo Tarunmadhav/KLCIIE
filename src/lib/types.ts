@@ -62,6 +62,20 @@ export interface RegistrationRole {
   updated_at?: string
 }
 
+/** An admin-managed Gmail SMTP account used for registration OTP emails. */
+export interface SmtpSetting {
+  id?: string
+  email: string
+  password: string
+  from_name: string
+  host: string
+  port: number
+  is_active: boolean
+  position: number
+  created_at?: string
+  updated_at?: string
+}
+
 export interface PlatformSettings {
   id: number
   allow_public_signup: boolean

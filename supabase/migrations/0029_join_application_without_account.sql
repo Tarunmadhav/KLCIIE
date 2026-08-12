@@ -370,6 +370,7 @@ grant execute on function public.get_recruit_applications() to authenticated;
 --    hands it to the send-recruit-email Edge Function). Identity comes from
 --    the application row when the applicant has no account.
 -- ---------------------------------------------------------------------------
+drop function if exists public.select_recruit(uuid, text);
 create or replace function public.select_recruit(
   p_application_id uuid,
   p_message text

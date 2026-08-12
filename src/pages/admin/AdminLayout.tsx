@@ -26,6 +26,7 @@ import {
   Ticket,
   Trophy,
   UserCheck,
+  UserCog,
   UserPlus,
   Users,
   X,
@@ -57,6 +58,7 @@ export default function AdminLayout() {
         ...(isSuperAdmin ? [{ to: '/admin/members/add', label: 'Add Member', icon: UserPlus }] : []),
         { to: '/admin/recruits', label: 'Recruits', icon: UserCheck },
         { to: '/admin/admins', label: 'Admins & MFA', icon: Shield },
+        ...(isSuperAdmin ? [{ to: '/admin/user-roles', label: 'User Roles', icon: UserCog }] : []),
       ],
     },
     {

@@ -70,6 +70,7 @@ import AttendanceSubmittedAdmin from '@/pages/admin/AttendanceSubmitted'
 import BrandingAdmin from '@/pages/admin/Branding'
 import AuditLogsAdmin from '@/pages/admin/AuditLogs'
 import AdminsAdmin from '@/pages/admin/Admins'
+import UserRolesAdmin from '@/pages/admin/UserRoles'
 import RecruitsAdmin from '@/pages/admin/Recruits'
 import SettingsAdmin from '@/pages/admin/Settings'
 import RegistrationKeysAdmin from '@/pages/admin/RegistrationKeys'
@@ -171,6 +172,7 @@ export default function App() {
                 <Route path="smtp" element={<RequireSuperAdmin><SmtpSettingsAdmin /></RequireSuperAdmin>} />
                 <Route path="audit-logs" element={<AuditLogsAdmin />} />
                 <Route path="admins" element={<AdminsAdmin />} />
+                <Route path="user-roles" element={<RequireSuperAdmin><UserRolesAdmin /></RequireSuperAdmin>} />
               </Route>
             </Route>
 

@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { KeyRound, ShieldCheck, Timer } from 'lucide-react'
+import { KeyRound, MailCheck, RefreshCw, ShieldCheck, Timer } from 'lucide-react'
 import { Button, Field, PageLoader, Spinner, TextInput } from '@/components/ui'
 import { CustomFieldInputs, missingFields } from '@/components/RegistrationFormFields'
 import { useAuth } from '@/hooks/useAuth'
@@ -33,9 +33,17 @@ export default function RoleRegister() {
   const [mfaCode, setMfaCode] = useState('')
   const [values, setValues] = useState<Record<string, string>>({})
 
+  const [step, setStep] = useState<'form' | 'otp'>('form')
+  const [otpCode, setOtpCode] = useState('')
+  const [validated, setValidated] = useState<{ token: string; role: string; label: string } | null>(null)
+
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [loadError, setLoadError] = useState('')
+  const [otpError, setOtpError] = useState('')
+  const [otpNotice, setOtpNotice] = useState('')
+  const [otpBusy, setOtpBusy] = useState(false)
+  const [resendBusy, setResendBusy] = useState(false)
 
   useEffect(() => {
     if (!slug) return
@@ -75,6 +83,19 @@ export default function RoleRegister() {
   }
 
   const fields = info.fields && info.fields.length > 0 ? info.fields : DEFAULT_EXTRA
+  const purpose = `role:${slug}`
+
+  const sendOtp = async (toEmail: string) => {
+    const { error: mailErr } = await supabase.functions.invoke('send-recruit-email', {
+      body: { kind: 'registration-otp', purpose, to_email: toEmail, full_name: fullName.trim() },
+    })
+    if (mailErr) {
+      setOtpError(`We couldn't email the verification code. ${errorMessage(mailErr)}`)
+      return false
+    }
+    setOtpError('')
+    return true
+  }
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
@@ -103,6 +124,10 @@ export default function RoleRegister() {
         return
       }
     }
+    if (!fullName.trim() || !studentId.trim()) {
+      setError('Please enter your full name and student ID.')
+      return
+    }
 
     setBusy(true)
     const { data, error: valErr } = await supabase.rpc('validate_role_registration', {
@@ -118,30 +143,134 @@ export default function RoleRegister() {
       return
     }
 
+    const ok = await sendOtp(email.trim())
+    setBusy(false)
+    if (!ok) return
+
+    setValidated({ token: res.token ?? '', role: res.role ?? info.role, label: res.label ?? info.label })
+    setOtpCode('')
+    setOtpNotice(`A 6-digit verification code has been emailed to ${email.trim()}.`)
+    setStep('otp')
+  }
+
+  const verifyOtp = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!validated) return
+    setOtpError('')
+    setOtpNotice('')
+    if (!/^\d{6}$/.test(otpCode.trim())) {
+      setOtpError('Enter the 6-digit code you received by email.')
+      return
+    }
+    setOtpBusy(true)
+    const { data, error: err } = await supabase.rpc('verify_email_otp', {
+      p_email: email.trim(),
+      p_purpose: purpose,
+      p_code: otpCode.trim(),
+    })
+    if (err || !(data as { ok?: boolean } | null)?.ok) {
+      setOtpBusy(false)
+      setOtpError((data as { error?: string } | null)?.error ?? errorMessage(err ?? 'Verification failed'))
+      return
+    }
+
     const meta: Record<string, string> = {
-      role: res.role ?? info.role,
+      role: validated.role,
       role_slug: slug ?? '',
-      registration_token: res.token ?? '',
+      registration_token: validated.token,
       student_id: studentId.trim(),
     }
     for (const f of fields) {
       meta[f.key] = (values[f.key] ?? '').trim()
     }
-    if (!fullName.trim() || !studentId.trim()) {
-      setError('Please enter your full name and student ID.')
-      return
-    }
+
     const sign = await signUp(fullName.trim(), email.trim(), password, meta)
-    setBusy(false)
+    setOtpBusy(false)
     if (sign.error) {
-      setError(sign.error)
+      setOtpError(sign.error)
       return
     }
     const { data: sessionData } = await supabase.auth.getSession()
     if (sessionData.session) {
       await refreshProfile()
     }
-    navigate('/register/role/success', { state: { label: res.label ?? info.label, email: email.trim() } })
+    navigate('/register/role/success', { state: { label: validated.label, email: email.trim() } })
+  }
+
+  const resend = async () => {
+    setOtpError('')
+    setResendBusy(true)
+    const ok = await sendOtp(email.trim())
+    setResendBusy(false)
+    if (!ok) return
+    setOtpNotice(`A fresh verification code has been emailed to ${email.trim()}.`)
+  }
+
+  const backToForm = () => {
+    setStep('form')
+    setOtpError('')
+    setOtpNotice('')
+    setOtpCode('')
+  }
+
+  if (step === 'otp') {
+    return (
+      <div className="w-full">
+        <div className="card p-8">
+          <div className="mb-6 text-center">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-100 text-primary-600">
+              <MailCheck size={24} />
+            </div>
+            <h1 className="text-xl font-bold text-slate-900">Verify your email</h1>
+            <p className="mt-1 text-sm text-slate-500">
+              We emailed a 6-digit code to <span className="font-semibold text-slate-700">{email}</span>. Enter it to
+              create your account as {info.label}.
+            </p>
+          </div>
+
+          <form onSubmit={(e) => void verifyOtp(e)} className="space-y-4">
+            <Field label="Verification code" hint="The code expires in 15 minutes.">
+              <TextInput
+                required
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="••••••"
+                className="text-center text-lg tracking-[0.5em]"
+              />
+            </Field>
+
+            {otpError && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{otpError}</p>}
+            {otpNotice && <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">{otpNotice}</p>}
+
+            <Button type="submit" disabled={otpBusy} className="w-full">
+              {otpBusy ? <Spinner className="border-white/40 border-t-white" /> : 'Verify & create my account'}
+            </Button>
+          </form>
+
+          <div className="mt-5 flex items-center justify-center gap-4">
+            <button
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary-600 hover:underline disabled:text-slate-400"
+              disabled={resendBusy}
+              onClick={() => void resend()}
+            >
+              {resendBusy ? <Spinner className="h-4 w-4" /> : <RefreshCw size={14} />} Resend code
+            </button>
+            <button className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:underline" onClick={backToForm}>
+              Edit details
+            </button>
+          </div>
+
+          <p className="mt-6 text-center text-sm text-slate-500">
+            Want to apply the normal way?{' '}
+            <Link to="/signup" className="font-semibold text-primary-600 hover:underline">
+              Join CIIE
+            </Link>
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -154,8 +283,8 @@ export default function RoleRegister() {
           <h1 className="text-xl font-bold text-slate-900">Register as {info.label}</h1>
           <p className="mt-1 text-sm text-slate-500">
             {info.requires_keys
-              ? 'You need the registration key and the current one-time code (changes every minute) from the CIIE admin.'
-              : 'Create your account. No registration key needed.'}
+              ? 'You need the registration key and the current one-time code (changes every minute) from the CIIE admin. We will then email a verification code to confirm your email.'
+              : 'Create your account. We will email a verification code to confirm your email. No registration key needed.'}
           </p>
         </div>
 
@@ -223,7 +352,7 @@ export default function RoleRegister() {
           {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
           <Button type="submit" disabled={busy} className="w-full">
-            {busy ? <Spinner className="border-white/40 border-t-white" /> : <>Complete registration</>}
+            {busy ? <Spinner className="border-white/40 border-t-white" /> : <>Send verification code</>}
           </Button>
         </form>
 
