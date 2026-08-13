@@ -32,6 +32,21 @@ export function initials(name: string | null | undefined): string {
     .join('')
 }
 
+/**
+ * Builds a usable social/profile URL from a user-supplied handle.
+ * Handles values that already include a scheme or the base host
+ * (e.g. "linkedin.com/in/xyz", "https://www.linkedin.com/in/xyz")
+ * so we never double the prefix like "linkedin.com/in/linkedin.com/in/xyz".
+ */
+export function socialHref(value: string | null | undefined, base: string): string {
+  const u = (value ?? '').trim().replace(/^@/, '')
+  if (!u) return '#'
+  if (/^https?:\/\//i.test(u)) return u
+  const baseHost = base.replace(/^https?:\/\//i, '').replace(/\/+$/, '')
+  if (baseHost && u.includes(baseHost)) return `https://${u}`
+  return base + u
+}
+
 export function isUpcoming(event: { start_date: string; end_date?: string | null; end_time?: string | null; status?: string }): boolean {
   return !isEventEnded(event) && new Date(event.start_date) >= startOfToday()
 }

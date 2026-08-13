@@ -3,12 +3,8 @@ import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Github, Linkedin, Mail, Send, UserRound } from 'lucide-react'
 import { Avatar, PageLoader } from '@/components/ui'
 import { supabase } from '@/lib/supabase'
+import { socialHref } from '@/lib/utils'
 import type { AmtpsMember } from '@/lib/types'
-
-const socialHref = (u: string, base: string) => {
-  if (/^https?:\/\//i.test(u)) return u
-  return base + u.replace(/^@/, '')
-}
 
 export default function AmtpsMemberPage() {
   const { id } = useParams<{ id: string }>()

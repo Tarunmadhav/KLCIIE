@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { Github, Globe, Linkedin, Mail, Send, Users } from 'lucide-react'
 import { Avatar, EmptyState, PageLoader } from '@/components/ui'
 import { supabase } from '@/lib/supabase'
+import { socialHref } from '@/lib/utils'
 
 interface PublicMember {
   id: string
@@ -18,11 +19,6 @@ interface PublicMember {
   avatar_url: string | null
   social_links: Record<string, string>
   phone: string | null
-}
-
-const socialHref = (u: string, base: string) => {
-  if (/^https?:\/\//i.test(u)) return u
-  return base + u.replace(/^@/, '')
 }
 
 export default function MemberPublic() {

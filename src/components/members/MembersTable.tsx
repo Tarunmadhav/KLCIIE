@@ -3,7 +3,7 @@ import { Github, Linkedin, Mail, Phone, Send, Trash2 } from 'lucide-react'
 import { Avatar, Badge } from '@/components/ui'
 import { supabase } from '@/lib/supabase'
 import { ROLE_LABELS, isAdminRole, type Profile } from '@/lib/types'
-import { formatDate } from '@/lib/utils'
+import { formatDate, socialHref } from '@/lib/utils'
 
 export interface MemberRow extends Profile {
   total_points?: number
@@ -20,12 +20,6 @@ export interface MemberStats {
   events_attended: number
   achievements: number
   certificates: number
-}
-
-const socialHref = (u: string | null | undefined, base: string) => {
-  if (!u) return ''
-  if (/^https?:\/\//i.test(u)) return u
-  return base + u.replace(/^@/, '')
 }
 
 export function fetchMemberRows(listedOnly = false): Promise<MemberRow[]> {

@@ -6,7 +6,7 @@ import { useBranding } from '@/hooks/useBranding'
 import { qrWithLogoDataUrl } from '@/lib/qr'
 import { supabase } from '@/lib/supabase'
 import type { Event } from '@/lib/types'
-import { endOfDayMs, formatDate, formatDateTime, isEventEnded as isEventEndedFn, kolkataMs } from '@/lib/utils'
+import { cn, endOfDayMs, formatDate, formatDateTime, isEventEnded as isEventEndedFn, kolkataMs } from '@/lib/utils'
 
 interface RegisteredEvent {
   event_id: string
@@ -52,6 +52,7 @@ export default function MemberQrPage() {
   const [loading, setLoading] = useState(true)
   const [qrLoading, setQrLoading] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
+  const [activeRound, setActiveRound] = useState<number | null>(null)
   const [nowTick, setNowTick] = useState(0)
 
   const copyCode = async (code: string) => {
@@ -177,6 +178,7 @@ export default function MemberQrPage() {
     setEventId(id)
     setQrMap({})
     setQrInfo(null)
+    setActiveRound(null)
     void refreshQr(id)
   }
 
@@ -243,23 +245,55 @@ export default function MemberQrPage() {
               <div>
                 <div className="mb-3 text-center text-sm font-bold text-slate-700">
                   {(qrInfo.attendance_rounds ?? 1) > 1
-                    ? `${qrInfo.attendance_rounds} attendance rounds`
+                    ? `${qrInfo.attendance_rounds} attendance rounds — pick a round to see its QR`
                     : '1 attendance round'}
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+
+                <div className="mb-4 flex flex-wrap items-center justify-center gap-2">
                   {(qrInfo.rounds ?? []).map((r) => {
+                    const isActive = activeRound === r.round
+                    return (
+                      <button
+                        key={r.round}
+                        type="button"
+                        onClick={() => setActiveRound(r.round)}
+                        className={cn(
+                          'relative flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold transition',
+                          isActive
+                            ? 'bg-primary-600 text-white shadow-md'
+                            : r.status === 'present'
+                              ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                        )}
+                        title={`Round ${r.round}`}
+                      >
+                        {r.round}
+                        {r.status === 'present' && (
+                          <CheckCircle2
+                            size={14}
+                            className={cn('absolute -right-1 -top-1 rounded-full bg-white', isActive ? 'text-green-400' : 'text-green-600')}
+                          />
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {(qrInfo.rounds ?? []).length > 0 &&
+                  (() => {
+                    const r = (qrInfo.rounds ?? []).find((x) => x.round === activeRound) ?? (qrInfo.rounds ?? [])[0]
                     const dataUrl = qrMap[r.round]
                     const code = r.code
                     return (
-                      <div key={r.round} className="rounded-2xl border-2 border-slate-200 bg-white p-3 text-center">
+                      <div className="mx-auto max-w-xs rounded-2xl border-2 border-slate-200 bg-white p-4 text-center">
                         <div className="relative mx-auto w-fit">
                           {dataUrl ? (
                             <div className="relative">
-                              <img src={dataUrl} alt={`Round ${r.round} attendance QR`} className="mx-auto h-36 w-36" />
+                              <img src={dataUrl} alt={`Round ${r.round} attendance QR`} className="mx-auto h-48 w-48" />
                               {r.status === 'present' && (
                                 <div className="absolute inset-0 flex items-center justify-center">
-                                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500 text-white shadow-lg ring-4 ring-white">
-                                    <CheckCircle2 size={26} />
+                                  <span className="flex h-14 w-14 items-center justify-center rounded-full bg-green-500 text-white shadow-lg ring-4 ring-white">
+                                    <CheckCircle2 size={30} />
                                   </span>
                                 </div>
                               )}
@@ -268,7 +302,7 @@ export default function MemberQrPage() {
                             <PageLoader />
                           )}
                         </div>
-                        <p className="mt-2 text-xs font-bold text-slate-700">Round {r.round}</p>
+                        <p className="mt-3 text-xs font-bold text-slate-700">Round {r.round}</p>
                         {r.status === 'present' ? (
                           <Badge tone="green">{r.marked_at ? `Present · ${formatDateTime(r.marked_at)}` : 'Present'}</Badge>
                         ) : (
@@ -286,8 +320,8 @@ export default function MemberQrPage() {
                         )}
                       </div>
                     )
-                  })}
-                </div>
+                  })()}
+
                 <p className="mt-3 flex items-center justify-center gap-1.5 rounded-xl bg-slate-100 px-4 py-3 text-xs text-slate-500">
                   <QrIcon size={15} /> Updates live — the moment a CIIE member marks you present, the tick appears and the QR refreshes automatically.
                 </p>

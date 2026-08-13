@@ -5,12 +5,8 @@ import { Avatar, EmptyState, Modal } from '@/components/ui'
 import Reveal from '@/components/Reveal'
 import { useSettings } from '@/hooks/useSettings'
 import { supabase } from '@/lib/supabase'
+import { socialHref } from '@/lib/utils'
 import type { AmtpsMember } from '@/lib/types'
-
-const socialHref = (u: string, base: string) => {
-  if (/^https?:\/\//i.test(u)) return u
-  return base + u.replace(/^@/, '')
-}
 
 const FETCH_FIELDS = 'id, full_name, email, student_id, department, year_of_study, position, domain, about, avatar_url, telegram, github, linkedin, contact_email, created_at, updated_at'
 

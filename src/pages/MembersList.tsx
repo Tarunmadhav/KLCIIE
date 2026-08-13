@@ -5,17 +5,13 @@ import { Avatar, Badge, EmptyState, PageHeader, TextInput } from '@/components/u
 import Reveal from '@/components/Reveal'
 import AmtpsShowcase from '@/components/amtps/AmtpsShowcase'
 import { supabase } from '@/lib/supabase'
+import { socialHref } from '@/lib/utils'
 import type { Profile } from '@/lib/types'
 
 interface PublicMember extends Pick<Profile, 'id' | 'full_name' | 'ciie_id' | 'department' | 'year_of_study' | 'team' | 'avatar_url' | 'bio'> {
   role?: string | null
   domain?: string | null
   social_links?: Record<string, string>
-}
-
-const socialHref = (u: string, base: string) => {
-  if (/^https?:\/\//i.test(u)) return u
-  return base + u.replace(/^@/, '')
 }
 
 export default function MembersList() {

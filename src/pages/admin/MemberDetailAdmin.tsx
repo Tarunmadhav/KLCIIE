@@ -24,7 +24,7 @@ import {
 import { Avatar, Badge, Button, EmptyState, Field, PageLoader, TextInput, Toggle } from '@/components/ui'
 import { supabase } from '@/lib/supabase'
 import { ROLE_LABELS, isAdminRole, type MemberAchievement, type MemberStats, type PointsTransaction, type Profile } from '@/lib/types'
-import { errorMessage, formatDate, moneyPoints } from '@/lib/utils'
+import { errorMessage, formatDate, moneyPoints, socialHref } from '@/lib/utils'
 
 interface Privacy {
   show_on_leaderboard: boolean
@@ -60,11 +60,6 @@ function SectionCard({ title, icon, action, children }: { title: string; icon?: 
       {children}
     </div>
   )
-}
-
-const socialHref = (u: string, base: string) => {
-  if (/^https?:\/\//i.test(u)) return u
-  return base + u.replace(/^@/, '')
 }
 
 export default function MemberDetailAdmin() {
