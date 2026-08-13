@@ -120,7 +120,7 @@ export default function MemberAddForm({ onCreated, submitLabel = 'Add member' }:
           </SelectInput>
         </Field>
         <Field label="Student Id" hint="College roll / registration number">
-          <TextInput value={form.student_id} onChange={(e) => setForm({ ...form, student_id: e.target.value })} placeholder="e.g. 22B81A0501" />
+          <TextInput value={form.student_id} onChange={(e) => setForm({ ...form, student_id: e.target.value.replace(/\D/g, '').slice(0, 20) })} placeholder="e.g. 22B81A0501" inputMode="numeric" />
         </Field>
         <Field label="Department">
           <TextInput value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} placeholder="CSE" />

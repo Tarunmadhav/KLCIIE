@@ -6,7 +6,7 @@ import { useSettings } from '@/hooks/useSettings'
 import { Button, Field, Spinner, TextInput } from '@/components/ui'
 import { CustomFieldInputs, missingFields } from '@/components/RegistrationFormFields'
 import type { CustomFieldDef } from '@/lib/types'
-import { errorMessage } from '@/lib/utils'
+import { emailInvokeMessage, errorMessage } from '@/lib/utils'
 
 const DEFAULT_FIELDS: CustomFieldDef[] = [
   { key: 'phone', label: 'Phone number', type: 'text', required: true },
@@ -79,21 +79,40 @@ export default function Signup() {
       setError('Could not create your application. Please try again.')
       return
     }
+    const nav = () =>
+      navigate('/verify-application', {
+        state: {
+          id: info.application_id,
+          email: info.to_email ?? email.trim(),
+          fullName: info.full_name ?? fullName.trim(),
+        },
+      })
+
+    // If a code was recently emailed to this address, don't send another — the
+    // verify page shows the remaining wait instead.
+    const { data: throttle } = await supabase.rpc('email_send_status', { p_email: email.trim() })
+    const waitSeconds = Number((throttle as { wait_seconds?: number } | null)?.wait_seconds ?? 0)
+    const locked = (throttle as { locked?: boolean } | null)?.locked === true
+    if (locked) {
+      setBusy(false)
+      setError('Too many verification attempts for this email. Please try again after 10 hours.')
+      return
+    }
+    if (waitSeconds > 0) {
+      setBusy(false)
+      nav()
+      return
+    }
+
     const { error: mailErr } = await supabase.functions.invoke('send-recruit-email', {
       body: { kind: 'join-verification', application_id: info.application_id },
     })
     setBusy(false)
     if (mailErr) {
-      setError(`We couldn't email the verification code. ${errorMessage(mailErr)}`)
+      setError(`We couldn't email the verification code. ${await emailInvokeMessage(mailErr)}`)
       return
     }
-    navigate('/verify-application', {
-      state: {
-        id: info.application_id,
-        email: info.to_email ?? email.trim(),
-        fullName: info.full_name ?? fullName.trim(),
-      },
-    })
+    nav()
   }
 
   if (!settings.allow_public_signup) return null
@@ -115,7 +134,7 @@ export default function Signup() {
           <TextInput required value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Rahul Kumar" />
         </Field>
         <Field label="Student ID (university roll number)">
-          <TextInput required value={studentId} onChange={(e) => setStudentId(e.target.value)} placeholder="e.g. 2300123456" />
+          <TextInput required inputMode="numeric" value={studentId} onChange={(e) => setStudentId(e.target.value.replace(/\D/g, '').slice(0, 20))} placeholder="e.g. 2300123456" />
         </Field>
         <Field label="Email" hint={settings.signup_domain_restriction ? 'A valid student email is mandatory. We send a verification code to this address.' : undefined}>
           <TextInput type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={settings.signup_domain_restriction ? 'you@kluniversity.in' : 'you@example.com'} />

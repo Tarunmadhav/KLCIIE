@@ -79,6 +79,7 @@ import LiveRegistrationsAdmin from '@/pages/admin/recruit/LiveRegistrations'
 import RecruitFormsAdmin from '@/pages/admin/recruit/RecruitForms'
 import RejectPermissionsAdmin from '@/pages/admin/recruit/RejectPermissions'
 import SmtpSettingsAdmin from '@/pages/admin/recruit/SmtpSettings'
+import SendMailAdmin from '@/pages/admin/SendMail'
 
 export default function App() {
   return (
@@ -170,6 +171,7 @@ export default function App() {
                 <Route path="recruit-forms" element={<RecruitFormsAdmin />} />
                 <Route path="reject-permissions" element={<RejectPermissionsAdmin />} />
                 <Route path="smtp" element={<RequireSuperAdmin><SmtpSettingsAdmin /></RequireSuperAdmin>} />
+                <Route path="send-mail" element={<RequireSuperAdmin><SendMailAdmin /></RequireSuperAdmin>} />
                 <Route path="audit-logs" element={<AuditLogsAdmin />} />
                 <Route path="admins" element={<AdminsAdmin />} />
                 <Route path="user-roles" element={<RequireSuperAdmin><UserRolesAdmin /></RequireSuperAdmin>} />

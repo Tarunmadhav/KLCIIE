@@ -1,5 +1,6 @@
 import type { CustomFieldDef } from '@/lib/types'
 import { Field, SelectInput, TextArea, TextInput } from '@/components/ui'
+import PhoneInput from '@/components/PhoneInput'
 
 export function CustomFieldInputs({
   fields,
@@ -15,9 +16,11 @@ export function CustomFieldInputs({
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       {fields.map((f) => (
-        <div key={f.key} className={f.type === 'textarea' ? 'sm:col-span-2' : undefined}>
+        <div key={f.key} className={f.key === 'phone' || f.type === 'textarea' ? 'sm:col-span-2' : undefined}>
           <Field label={`${f.label} *`}>
-            {f.type === 'textarea' ? (
+            {f.key === 'phone' ? (
+              <PhoneInput value={values[f.key] ?? ''} onChange={(v) => set(f.key, v)} />
+            ) : f.type === 'textarea' ? (
               <TextArea
                 required
                 rows={3}

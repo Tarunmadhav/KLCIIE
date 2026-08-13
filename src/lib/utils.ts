@@ -102,6 +102,25 @@ export function errorMessage(err: unknown): string {
   return String(err ?? 'Something went wrong')
 }
 
+/**
+ * Extracts the `error` field from a Supabase Edge Function HTTP error body
+ * (e.g. `send-recruit-email` throttling responses), falling back to the
+ * generic error message when the body cannot be parsed.
+ */
+export async function emailInvokeMessage(err: unknown): Promise<string> {
+  const ctx = (err as { context?: unknown } | null)?.context
+  const response = ctx as Response | undefined
+  if (response && typeof response.json === 'function') {
+    try {
+      const body = (await response.json()) as { error?: string }
+      if (body?.error) return String(body.error)
+    } catch {
+      // ignore unparseable body
+    }
+  }
+  return errorMessage(err)
+}
+
 // ---------------------------------------------------------------------------
 // Media helpers
 // ---------------------------------------------------------------------------

@@ -257,6 +257,38 @@ Deno.serve(async (req: Request) => {
     const hash = await sha256Hex(code.toUpperCase())
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString()
 
+    // ------------------------------------------------------------------------
+    // Resend throttling: 2 min after the previous send, +30s per attempt,
+    // and a hard 10-hour lock once 15 codes have been emailed to this address.
+    // ------------------------------------------------------------------------
+    const { data: throttle } = await admin.rpc("email_send_status", { p_email: to })
+    const locked = throttle?.locked === true
+    const waitSeconds = Number(throttle?.wait_seconds ?? 0)
+    if (locked) {
+      return Response.json(
+        {
+          error:
+            "Too many verification attempts for this email. Please try again after 10 hours.",
+          locked: true,
+          attempts: Number(throttle?.attempts ?? 0),
+        },
+        { status: 429, headers: corsHeaders },
+      )
+    }
+    if (waitSeconds > 0) {
+      return Response.json(
+        {
+          error:
+            waitSeconds >= 60
+              ? `Please wait ${Math.floor(waitSeconds / 60)} min ${waitSeconds % 60} sec before requesting another code.`
+              : `Please wait ${waitSeconds} sec before requesting another code.`,
+          retry_after_seconds: waitSeconds,
+          attempts: Number(throttle?.attempts ?? 0),
+        },
+        { status: 429, headers: corsHeaders },
+      )
+    }
+
     // Store the hash BEFORE sending (a failed send leaves a code that was never
     // emailed — harmless, a resend simply mints a fresh one).
     if (payload.kind === "join-verification") {
@@ -308,6 +340,7 @@ Deno.serve(async (req: Request) => {
     if (!result.ok) {
       return Response.json({ error: result.error }, { status: 500, headers: corsHeaders })
     }
+    await admin.rpc("email_send_recorded", { p_email: to })
     return Response.json({ ok: true }, { headers: corsHeaders })
   }
 

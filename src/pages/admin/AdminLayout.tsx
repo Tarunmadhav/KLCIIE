@@ -91,6 +91,7 @@ export default function AdminLayout() {
         { to: '/admin/branding', label: 'Branding', icon: Palette },
         ...(!isMailAdmin ? [{ to: '/admin/settings', label: 'Settings', icon: Settings }] : []),
         ...(isSuperAdmin ? [{ to: '/admin/smtp', label: 'Email', icon: Mail }] : []),
+        ...(isSuperAdmin ? [{ to: '/admin/send-mail', label: 'Send Email', icon: Mail }] : []),
         ...(isSuperAdmin ? [{ to: '/admin/registration-keys', label: 'Registration Keys', icon: KeyRound }] : []),
         { to: '/admin/audit-logs', label: 'Audit Logs', icon: ScrollText },
       ],

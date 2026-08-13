@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Ticket } from 'lucide-react'
 import { Button, Field, PageLoader, SelectInput, Spinner, TextInput, TextArea } from '@/components/ui'
+import PhoneInput from '@/components/PhoneInput'
 import { useAuth } from '@/hooks/useAuth'
 import { fetchEvent } from '@/lib/queries'
 import { supabase } from '@/lib/supabase'
@@ -124,13 +125,13 @@ export default function EventRegister() {
             <TextInput required value={name} onChange={(e) => setName(e.target.value)} placeholder="Rahul Kumar" />
           </Field>
           <Field label="Student ID (university roll number)">
-            <TextInput required value={studentId} onChange={(e) => setStudentId(e.target.value)} placeholder="e.g. 2300123456" />
+            <TextInput required value={studentId} onChange={(e) => setStudentId(e.target.value.replace(/\D/g, '').slice(0, 20))} placeholder="e.g. 2300123456" inputMode="numeric" />
           </Field>
           <Field label="Email">
             <TextInput type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
           </Field>
           <Field label="Phone">
-            <TextInput value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 ..." />
+            <PhoneInput value={phone} onChange={setPhone} />
           </Field>
           <Field label="Department">
             <TextInput value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="CSE" />

@@ -3,8 +3,9 @@ import { Link, useLocation } from 'react-router-dom'
 import { CalendarCheck, MailCheck, RefreshCw, ShieldCheck } from 'lucide-react'
 import { Button, Field, Spinner, TextInput } from '@/components/ui'
 import { interviewDateFor, useSettings } from '@/hooks/useSettings'
+import { formatWait, useEmailCooldown } from '@/hooks/useEmailCooldown'
 import { supabase } from '@/lib/supabase'
-import { errorMessage, formatDate } from '@/lib/utils'
+import { emailInvokeMessage, errorMessage, formatDate } from '@/lib/utils'
 
 interface JoinAppInfo {
   id: string
@@ -47,6 +48,9 @@ export default function VerifyApplication() {
   const [busy, setBusy] = useState(false)
   const [resendBusy, setResendBusy] = useState(false)
 
+  const { status: otpStatus, remaining: otpRemaining, refresh: refreshOtpStatus } = useEmailCooldown(info?.email ?? null)
+  const otpLocked = otpStatus?.locked === true
+
   useEffect(() => {
     if (info?.id) {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify(info))
@@ -84,7 +88,7 @@ export default function VerifyApplication() {
   }
 
   const resend = async () => {
-    if (!info) return
+    if (!info || otpRemaining > 0 || otpLocked) return
     setError('')
     setNotice('')
     setResendBusy(true)
@@ -93,10 +97,12 @@ export default function VerifyApplication() {
     })
     setResendBusy(false)
     if (err) {
-      setError(`We couldn't email a new code. ${errorMessage(err)}`)
+      setError(`We couldn't email a new code. ${await emailInvokeMessage(err)}`)
+      await refreshOtpStatus()
       return
     }
     setNotice(`A fresh verification code has been emailed to ${info.email}.`)
+    await refreshOtpStatus(120)
   }
 
   if (!info) {
@@ -173,6 +179,10 @@ export default function VerifyApplication() {
           We emailed a 6-digit code to <span className="font-semibold text-slate-700">{info.email}</span>. Enter it to
           submit your application.
         </p>
+        <p className="mx-auto mt-2 max-w-md text-xs text-slate-400">
+          Didn't receive it? Check your <strong>spam</strong> / <strong>promotions</strong> folder and make sure you
+          entered the right email address.
+        </p>
       </div>
 
       <form onSubmit={(e) => void verify(e)} className="space-y-4">
@@ -190,6 +200,11 @@ export default function VerifyApplication() {
 
         {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
         {notice && <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">{notice}</p>}
+        {otpLocked && (
+          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+            Too many verification attempts for this email. Please try again after 10 hours.
+          </p>
+        )}
 
         <Button type="submit" disabled={busy} className="w-full">
           {busy ? <Spinner className="border-white/40 border-t-white" /> : 'Submit my application'}
@@ -199,10 +214,11 @@ export default function VerifyApplication() {
       <div className="mt-5 flex items-center justify-center gap-2">
         <button
           className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary-600 hover:underline disabled:text-slate-400"
-          disabled={resendBusy}
+          disabled={resendBusy || otpRemaining > 0 || otpLocked}
           onClick={() => void resend()}
         >
-          {resendBusy ? <Spinner className="h-4 w-4" /> : <RefreshCw size={14} />} Resend code
+          {resendBusy ? <Spinner className="h-4 w-4" /> : <RefreshCw size={14} />}
+          {otpRemaining > 0 ? `Resend code in ${formatWait(otpRemaining)}` : 'Resend code'}
         </button>
       </div>
 

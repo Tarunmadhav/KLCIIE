@@ -5,9 +5,10 @@ import { Button, Field, PageLoader, Spinner, TextInput } from '@/components/ui'
 import { CustomFieldInputs, missingFields } from '@/components/RegistrationFormFields'
 import { useAuth } from '@/hooks/useAuth'
 import { useSettings } from '@/hooks/useSettings'
+import { formatWait, useEmailCooldown, type EmailSendStatus } from '@/hooks/useEmailCooldown'
 import { supabase } from '@/lib/supabase'
 import type { CustomFieldDef } from '@/lib/types'
-import { errorMessage } from '@/lib/utils'
+import { emailInvokeMessage, errorMessage } from '@/lib/utils'
 
 const DEFAULT_EXTRA: CustomFieldDef[] = [
   { key: 'phone', label: 'Phone number', type: 'text', required: true },
@@ -36,6 +37,9 @@ export default function RoleRegister() {
   const [step, setStep] = useState<'form' | 'otp'>('form')
   const [otpCode, setOtpCode] = useState('')
   const [validated, setValidated] = useState<{ token: string; role: string; label: string } | null>(null)
+
+  const { status: otpStatus, remaining: otpRemaining, refresh: refreshOtpStatus } = useEmailCooldown(step === 'otp' ? email.trim() : null)
+  const otpLocked = otpStatus?.locked === true
 
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -90,7 +94,7 @@ export default function RoleRegister() {
       body: { kind: 'registration-otp', purpose, to_email: toEmail, full_name: fullName.trim() },
     })
     if (mailErr) {
-      setOtpError(`We couldn't email the verification code. ${errorMessage(mailErr)}`)
+      setOtpError(`We couldn't email the verification code. ${await emailInvokeMessage(mailErr)}`)
       return false
     }
     setOtpError('')
@@ -143,13 +147,31 @@ export default function RoleRegister() {
       return
     }
 
+    const validatedInfo = { token: res.token ?? '', role: res.role ?? info.role, label: res.label ?? info.label }
+    setValidated(validatedInfo)
+
+    // Respect the resend cooldown / 10-hour lockout for this address.
+    const throttle = (await supabase.rpc('email_send_status', { p_email: email.trim() })).data as EmailSendStatus | null
+    if (throttle?.locked) {
+      setBusy(false)
+      setError('Too many verification attempts for this email. Please try again after 10 hours.')
+      return
+    }
+    if ((throttle?.wait_seconds ?? 0) > 0) {
+      setBusy(false)
+      setOtpCode('')
+      setOtpNotice(`A 6-digit verification code has been emailed to ${email.trim()}.`)
+      setStep('otp')
+      return
+    }
+
     const ok = await sendOtp(email.trim())
     setBusy(false)
     if (!ok) return
 
-    setValidated({ token: res.token ?? '', role: res.role ?? info.role, label: res.label ?? info.label })
     setOtpCode('')
     setOtpNotice(`A 6-digit verification code has been emailed to ${email.trim()}.`)
+    await refreshOtpStatus(120)
     setStep('otp')
   }
 
@@ -199,11 +221,13 @@ export default function RoleRegister() {
 
   const resend = async () => {
     setOtpError('')
+    setOtpNotice('')
     setResendBusy(true)
     const ok = await sendOtp(email.trim())
     setResendBusy(false)
     if (!ok) return
     setOtpNotice(`A fresh verification code has been emailed to ${email.trim()}.`)
+    await refreshOtpStatus(120)
   }
 
   const backToForm = () => {
@@ -226,6 +250,10 @@ export default function RoleRegister() {
               We emailed a 6-digit code to <span className="font-semibold text-slate-700">{email}</span>. Enter it to
               create your account as {info.label}.
             </p>
+            <p className="mx-auto mt-2 max-w-md text-xs text-slate-400">
+              Didn't receive it? Check your <strong>spam</strong> / <strong>promotions</strong> folder and make sure you
+              entered the right email address.
+            </p>
           </div>
 
           <form onSubmit={(e) => void verifyOtp(e)} className="space-y-4">
@@ -243,6 +271,11 @@ export default function RoleRegister() {
 
             {otpError && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{otpError}</p>}
             {otpNotice && <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">{otpNotice}</p>}
+            {otpLocked && (
+              <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+                Too many verification attempts for this email. Please try again after 10 hours.
+              </p>
+            )}
 
             <Button type="submit" disabled={otpBusy} className="w-full">
               {otpBusy ? <Spinner className="border-white/40 border-t-white" /> : 'Verify & create my account'}
@@ -252,10 +285,11 @@ export default function RoleRegister() {
           <div className="mt-5 flex items-center justify-center gap-4">
             <button
               className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary-600 hover:underline disabled:text-slate-400"
-              disabled={resendBusy}
+              disabled={resendBusy || otpRemaining > 0 || otpLocked}
               onClick={() => void resend()}
             >
-              {resendBusy ? <Spinner className="h-4 w-4" /> : <RefreshCw size={14} />} Resend code
+              {resendBusy ? <Spinner className="h-4 w-4" /> : <RefreshCw size={14} />}
+              {otpRemaining > 0 ? `Resend code in ${formatWait(otpRemaining)}` : 'Resend code'}
             </button>
             <button className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:underline" onClick={backToForm}>
               Edit details
@@ -294,7 +328,7 @@ export default function RoleRegister() {
               <TextInput required value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Rahul Kumar" />
             </Field>
             <Field label="Student ID *">
-              <TextInput required value={studentId} onChange={(e) => setStudentId(e.target.value)} placeholder="University roll number" />
+              <TextInput required inputMode="numeric" value={studentId} onChange={(e) => setStudentId(e.target.value.replace(/\D/g, '').slice(0, 20))} placeholder="University roll number" />
             </Field>
             <Field label="Email *" hint={settings.signup_domain_restriction ? 'Only KL University email addresses are accepted.' : undefined}>
               <TextInput type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={settings.signup_domain_restriction ? 'you@kluniversity.in' : 'you@example.com'} />

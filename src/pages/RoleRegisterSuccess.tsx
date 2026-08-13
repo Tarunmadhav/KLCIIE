@@ -17,16 +17,6 @@ export default function RoleRegisterSuccess() {
           <p className="mt-1 text-sm text-primary-100">You are now registered as {label}.</p>
         </div>
         <div className="px-8 py-8">
-          <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
-            {state.email ? (
-              <>
-                A confirmation email has been sent to <span className="font-semibold text-slate-900">{state.email}</span>.
-                Verify your email, then log in to access your account.
-              </>
-            ) : (
-              'Your account is ready. Log in to access your dashboard.'
-            )}
-          </div>
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
             <Link to="/login" className="btn-primary">
               <LayoutDashboard size={16} /> Log in
