@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Github, Linkedin, Mail, Search, Send, Users } from 'lucide-react'
-import { Avatar, Badge, EmptyState, PageHeader, PageLoader, TextInput } from '@/components/ui'
+import { Avatar, Badge, EmptyState, PageHeader, TextInput } from '@/components/ui'
+import Reveal from '@/components/Reveal'
 import AmtpsShowcase from '@/components/amtps/AmtpsShowcase'
 import { supabase } from '@/lib/supabase'
 import type { Profile } from '@/lib/types'
@@ -62,6 +63,10 @@ export default function MembersList() {
         />
       </div>
 
+      <div className="mb-10">
+        <AmtpsShowcase query={query} />
+      </div>
+
       {loading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -74,57 +79,51 @@ export default function MembersList() {
             </div>
           ))}
         </div>
-      ) : (
-        <>
-          <div className="mb-10">
-            <AmtpsShowcase query={query} />
+      ) : filtered.length > 0 ? (
+        <Reveal>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((m) => (
+            <Link key={m.id} to={`/members/${m.id}`} className="card flex items-center gap-4 p-4 transition hover:shadow-md">
+              <Avatar name={m.full_name} src={m.avatar_url} className="h-12 w-12" />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="truncate font-bold text-slate-900">{m.full_name}</p>
+                  {m.domain && m.role !== 'user' && <Badge tone="primary" className="shrink-0">{m.domain}</Badge>}
+                </div>
+                <p className="text-xs text-slate-400">{m.ciie_id}</p>
+                <p className="truncate text-xs text-slate-500">
+                  {[m.department, m.year_of_study].filter(Boolean).join(' • ') || 'CIIE Member'}
+                </p>
+                <div className="mt-1.5 flex items-center gap-2 text-slate-400">
+                  {m.social_links?.telegram && (
+                    <a href={socialHref(m.social_links.telegram, 'https://t.me/')} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} title="Telegram">
+                      <Send size={13} />
+                    </a>
+                  )}
+                  {m.social_links?.github && (
+                    <a href={socialHref(m.social_links.github, 'https://github.com/')} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} title="GitHub">
+                      <Github size={13} />
+                    </a>
+                  )}
+                  {m.social_links?.linkedin && (
+                    <a href={socialHref(m.social_links.linkedin, 'https://linkedin.com/in/')} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} title="LinkedIn">
+                      <Linkedin size={13} />
+                    </a>
+                  )}
+                  {m.social_links?.email && (
+                    <a href={`mailto:${m.social_links.email}`} onClick={(e) => e.stopPropagation()} title="Email">
+                      <Mail size={13} />
+                    </a>
+                  )}
+                </div>
+              </div>
+            </Link>
+          ))}
           </div>
-
-          {filtered.length > 0 ? (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {filtered.map((m) => (
-                <Link key={m.id} to={`/members/${m.id}`} className="card flex items-center gap-4 p-4 transition hover:shadow-md">
-                  <Avatar name={m.full_name} src={m.avatar_url} className="h-12 w-12" />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="truncate font-bold text-slate-900">{m.full_name}</p>
-                      {m.domain && m.role !== 'user' && <Badge tone="primary" className="shrink-0">{m.domain}</Badge>}
-                    </div>
-                    <p className="text-xs text-slate-400">{m.ciie_id}</p>
-                    <p className="truncate text-xs text-slate-500">
-                      {[m.department, m.year_of_study].filter(Boolean).join(' • ') || 'CIIE Member'}
-                    </p>
-                    <div className="mt-1.5 flex items-center gap-2 text-slate-400">
-                      {m.social_links?.telegram && (
-                        <a href={socialHref(m.social_links.telegram, 'https://t.me/')} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} title="Telegram">
-                          <Send size={13} />
-                        </a>
-                      )}
-                      {m.social_links?.github && (
-                        <a href={socialHref(m.social_links.github, 'https://github.com/')} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} title="GitHub">
-                          <Github size={13} />
-                        </a>
-                      )}
-                      {m.social_links?.linkedin && (
-                        <a href={socialHref(m.social_links.linkedin, 'https://linkedin.com/in/')} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} title="LinkedIn">
-                          <Linkedin size={13} />
-                        </a>
-                      )}
-                      {m.social_links?.email && (
-                        <a href={`mailto:${m.social_links.email}`} onClick={(e) => e.stopPropagation()} title="Email">
-                          <Mail size={13} />
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          ) : query ? (
-            <EmptyState icon={<Users size={40} />} title="No members found" subtitle="Try a different search." />
-          ) : null}
-        </>
-      )}
+        </Reveal>
+      ) : query ? (
+        <EmptyState icon={<Users size={40} />} title="No members found" subtitle="Try a different search." />
+      ) : null}
     </div>
   )
 }
