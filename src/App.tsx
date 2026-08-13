@@ -18,6 +18,8 @@ import RegisterSuccess from '@/pages/RegisterSuccess'
 import Leaderboard from '@/pages/Leaderboard'
 import MembersList from '@/pages/MembersList'
 import MemberPublic from '@/pages/MemberPublic'
+import AmtpsPage from '@/pages/AmtpsPage'
+import AmtpsMemberPage from '@/pages/AmtpsMemberPage'
 import PostsList from '@/pages/PostsList'
 import PostDetail from '@/pages/PostDetail'
 import Login from '@/pages/Login'
@@ -56,6 +58,7 @@ import PointRules from '@/pages/admin/PointRules'
 import PointsAdmin from '@/pages/admin/Points'
 import MembersAdmin from '@/pages/admin/MembersAdmin'
 import MembersAdd from '@/pages/admin/MembersAdd'
+import AmtpsAdmin from '@/pages/admin/AmtpsAdmin'
 import MemberDetailAdmin from '@/pages/admin/MemberDetailAdmin'
 import AttendanceScanner from '@/pages/admin/AttendanceScanner'
 import AttendanceAdmin from '@/pages/admin/AttendanceAdmin'
@@ -101,6 +104,8 @@ export default function App() {
               <Route path="/register/success/:registrationId" element={<RegisterSuccess />} />
               <Route path="/members" element={<MembersList />} />
               <Route path="/members/:id" element={<MemberPublic />} />
+              <Route path="/amtps" element={<AmtpsPage />} />
+              <Route path="/amtps/:id" element={<AmtpsMemberPage />} />
               <Route path="/posts" element={<PostsList />} />
               <Route path="/posts/:slug" element={<PostDetail />} />
               <Route path="/gallery" element={<Gallery />} />
@@ -150,7 +155,8 @@ export default function App() {
                 <Route path="point-rules" element={<PointRules />} />
                 <Route path="points" element={<RequireSuperAdmin><PointsAdmin /></RequireSuperAdmin>} />
                 <Route path="members" element={<MembersAdmin />} />
-<Route path="members/add" element={<MembersAdd />} />
+                <Route path="members/add" element={<MembersAdd />} />
+                <Route path="amtps" element={<RequireSuperAdmin><AmtpsAdmin /></RequireSuperAdmin>} />
                 <Route path="members/:id" element={<MemberDetailAdmin />} />
                 <Route path="recruits" element={<RecruitsAdmin />} />
                 <Route path="attendance" element={<AttendanceAdmin />} />

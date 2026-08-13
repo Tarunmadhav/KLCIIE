@@ -39,6 +39,26 @@ export interface Profile {
   custom_fields?: Record<string, string>
 }
 
+/** An AMTPS display card added by a super admin (no login account). */
+export interface AmtpsMember {
+  id: string
+  full_name: string
+  email: string | null
+  student_id: string | null
+  department: string | null
+  year_of_study: string | null
+  position: string | null
+  domain: string | null
+  about: string | null
+  avatar_url: string | null
+  telegram: string | null
+  github: string | null
+  linkedin: string | null
+  contact_email: string | null
+  created_at: string
+  updated_at: string
+}
+
 /** A registration form field definition (admin-editable, all mandatory). */
 export interface CustomFieldDef {
   key: string
@@ -92,6 +112,7 @@ export interface PlatformSettings {
   contact_phone: string | null
   office_address: string | null
   signup_fields: CustomFieldDef[]
+  amtps_mode: boolean
   updated_by: string | null
   updated_at?: string
 }

@@ -6,6 +6,7 @@ import {
   Camera,
   ClipboardCheck,
   ClipboardList,
+  ContactRound,
   FileText,
   Images,
   KeyRound,
@@ -57,6 +58,7 @@ export default function AdminLayout() {
       items: [
         { to: '/admin/members', label: 'Members', icon: Users },
         ...(isSuperAdmin ? [{ to: '/admin/members/add', label: 'Add Member', icon: UserPlus }] : []),
+        ...(isSuperAdmin ? [{ to: '/admin/amtps', label: 'AMTPS', icon: ContactRound }] : []),
         { to: '/admin/recruits', label: 'Recruits', icon: UserCheck },
         ...(!isMailAdmin ? [{ to: '/admin/admins', label: 'Admins & MFA', icon: Shield }] : []),
         ...(isSuperAdmin ? [{ to: '/admin/user-roles', label: 'User Roles', icon: UserCog }] : []),
