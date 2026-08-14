@@ -57,9 +57,9 @@ export default function MemberQrPage() {
   const [nowTick, setNowTick] = useState(0)
   const [nowMs, setNowMs] = useState(() => Date.now())
 
-  // Attendance QR codes rotate server-side every ~10 seconds so a
-  // screenshotted QR expires seconds after it was captured.
-  const QR_ROTATE_MS = 10000
+  // Attendance QR codes rotate server-side every ~20 seconds so a
+  // screenshotted QR expires quickly after it was captured.
+  const QR_ROTATE_MS = 20000
 
   const copyCode = async (code: string) => {
     try {
@@ -360,7 +360,7 @@ export default function MemberQrPage() {
                   })()}
 
                 <p className="mt-3 flex items-center justify-center gap-1.5 rounded-xl bg-slate-100 px-4 py-3 text-xs text-slate-500">
-                  <QrIcon size={15} /> The QR rotates automatically every ~10 seconds — show the current one, and never share a screenshot. The moment you're marked present, the tick appears instantly.
+                  <QrIcon size={15} /> The QR rotates automatically every ~20 seconds — show the current one, and never share a screenshot. The moment you're marked present, the tick appears instantly.
                 </p>
                 <button className="btn-secondary mt-3 w-full" onClick={() => refreshQr(eventId)}>
                   <RefreshCw size={14} /> Refresh QRs

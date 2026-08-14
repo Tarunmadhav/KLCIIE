@@ -4,7 +4,7 @@
 -- 1) ROTATING QRs
 --    Attendance QR codes now expire a few seconds after they are shown. The
 --    member page re-polls get_my_event_attendance_qr every few seconds and the
---    server re-issues unused codes that are older than 10 seconds, so a
+--    server re-issues unused codes that are older than 20 seconds, so a
 --    screenshotted QR stops working shortly after capture. The scanner keeps
 --    working because the code currently on screen is always younger than the
 --    rotation window. The rounds payload now also includes `issued_at` so the
@@ -27,7 +27,7 @@ alter table public.event_member_qr_codes
   add column if not exists code_issued_at timestamptz not null default now();
 
 -- ---------------------------------------------------------------------------
--- MY EVENT ATTENDANCE QR — rotate unused codes older than 10s
+-- MY EVENT ATTENDANCE QR — rotate unused codes older than 20s
 -- ---------------------------------------------------------------------------
 create or replace function public.get_my_event_attendance_qr(p_event_id uuid)
 returns jsonb
@@ -77,8 +77,8 @@ begin
     on conflict (event_id, member_id, round) do nothing;
   end loop;
 
-  -- Rotate unused codes that were issued more than 10 seconds ago so a
-  -- screenshotted QR expires seconds after it was captured. Used codes keep
+  -- Rotate unused codes that were issued more than 20 seconds ago so a
+  -- screenshotted QR expires quickly after it was captured. Used codes keep
   -- their rotated value (already invalidated by the scanner).
   update public.event_member_qr_codes eq
   set code = encode(public.gen_random_bytes(9), 'hex'),
@@ -86,7 +86,7 @@ begin
   where eq.event_id = p_event_id
     and eq.member_id = v_uid
     and eq.used_at is null
-    and now() - eq.code_issued_at >= interval '10 seconds';
+    and now() - eq.code_issued_at >= interval '20 seconds';
 
   select jsonb_agg(
     jsonb_build_object(
