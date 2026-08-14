@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Html5Qrcode } from 'html5-qrcode'
-import { Badge, TextInput } from '@/components/ui'
+import { Badge, Modal, TextInput } from '@/components/ui'
 import { supabase } from '@/lib/supabase'
 import type { Event } from '@/lib/types'
 import { cn, errorMessage, formatDateTime } from '@/lib/utils'
@@ -54,6 +54,7 @@ export default function AttendanceScannerPanel({ eventId }: AttendanceScannerPan
   const [message, setMessage] = useState('')
   const [scanDetails, setScanDetails] = useState<ScanDetails | null>(null)
   const [isDuplicate, setIsDuplicate] = useState(false)
+  const [popup, setPopup] = useState<{ kind: 'error' | 'duplicate'; text: string } | null>(null)
   const [manualCode, setManualCode] = useState('')
   const [round, setRound] = useState(1)
   const scannerRef = useRef<Html5Qrcode | null>(null)
@@ -107,6 +108,7 @@ export default function AttendanceScannerPanel({ eventId }: AttendanceScannerPan
     setMessage('')
     setScanDetails(null)
     setIsDuplicate(false)
+    setPopup(null)
     const scanner = new Html5Qrcode('qr-reader')
     scannerRef.current = scanner
     try {
@@ -119,8 +121,8 @@ export default function AttendanceScannerPanel({ eventId }: AttendanceScannerPan
         () => undefined,
       )
     } catch (err) {
-      setState('error')
-      setMessage(`Could not start camera: ${errorMessage(err)}`)
+      setState('stopped')
+      setPopup({ kind: 'error', text: `Could not start camera: ${errorMessage(err)}` })
     }
   }
 
@@ -149,13 +151,14 @@ export default function AttendanceScannerPanel({ eventId }: AttendanceScannerPan
       if ((payload?.type === 'ticket' || payload?.type === 'event_attendance') && payload.code) {
         if (payload.event_id && eventId && payload.event_id !== eventId) {
           setState('error')
-          setMessage('No student registered for this event')
           setScanDetails(null)
+          setPopup({ kind: 'error', text: 'No student registered for this event' })
           return
         }
         setState('success')
         setMessage('Ticket verified — registration details shown below (attendance not marked).')
         setScanDetails(await fetchScanDetails(payload.code, undefined))
+        setPopup(null)
         return
       }
 
@@ -173,13 +176,14 @@ export default function AttendanceScannerPanel({ eventId }: AttendanceScannerPan
           duplicateRef.current = true
           setState('error')
           setIsDuplicate(true)
-          setMessage(result.message)
           setScanDetails(await fetchScanDetails(result.registrationCode, result.memberId))
+          setPopup({ kind: 'duplicate', text: result.message })
           return
         }
         setState('success')
         setMessage(result.message)
         setScanDetails(await fetchScanDetails(result.registrationCode, result.memberId))
+        setPopup(null)
         return
       }
 
@@ -188,20 +192,23 @@ export default function AttendanceScannerPanel({ eventId }: AttendanceScannerPan
         setState('success')
         setMessage('Ticket verified — registration details shown below (attendance not marked).')
         setScanDetails(details)
+        setPopup(null)
         return
       }
 
       setIsDuplicate(false)
       setState('error')
       const msg = result.message
+      let popupText: string
       if (/invalid or expired attendance code/i.test(msg)) {
-        setMessage('This QR has expired — it rotates every few seconds. Ask the member to show the current code.')
+        popupText = 'This QR has expired — it rotates every few seconds. Ask the member to show the current code.'
       } else if (/event mismatch|no student registered|not registered/i.test(msg)) {
-        setMessage('No student registered for this event')
+        popupText = 'No student registered for this event'
       } else {
-        setMessage(msg)
+        popupText = msg
       }
       setScanDetails(null)
+      setPopup({ kind: 'error', text: popupText })
     } finally {
       busyRef.current = false
       const delay = duplicateRef.current ? 3200 : 1800
@@ -418,10 +425,9 @@ export default function AttendanceScannerPanel({ eventId }: AttendanceScannerPan
             </div>
           )}
           {state === 'error' && (
-            <div className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-red-50 px-4 py-3 text-red-700">
-              <XCircle size={18} />
-              <span className="text-sm font-semibold">{message}</span>
-            </div>
+            <p className="mt-3 text-center text-xs text-slate-400">
+              Check the popup message and try again.
+            </p>
           )}
 
           <div className="mt-5 border-t border-slate-200 pt-4">
@@ -444,6 +450,27 @@ export default function AttendanceScannerPanel({ eventId }: AttendanceScannerPan
           Registration {event?.registration_enabled ? 'open' : 'closed'}
         </Badge>
       </div>
+
+      <Modal
+        open={!!popup}
+        onClose={() => setPopup(null)}
+        title={popup?.kind === 'duplicate' ? 'Already scanned' : 'Scan error'}
+        footer={
+          <button className="btn-primary" onClick={() => setPopup(null)}>
+            OK
+          </button>
+        }
+      >
+        <div
+          className={cn(
+            'flex items-start gap-3 rounded-xl p-4 text-sm font-semibold',
+            popup?.kind === 'duplicate' ? 'bg-amber-50 text-amber-800' : 'bg-red-50 text-red-700',
+          )}
+        >
+          {popup?.kind === 'duplicate' ? <AlertTriangle size={20} className="mt-0.5 shrink-0" /> : <XCircle size={20} className="mt-0.5 shrink-0" />}
+          <span>{popup?.text}</span>
+        </div>
+      </Modal>
     </div>
   )
 }
