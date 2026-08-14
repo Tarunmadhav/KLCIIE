@@ -54,12 +54,13 @@ export default function AttendanceScannerPanel({ eventId }: AttendanceScannerPan
   const [message, setMessage] = useState('')
   const [scanDetails, setScanDetails] = useState<ScanDetails | null>(null)
   const [isDuplicate, setIsDuplicate] = useState(false)
-  const [popup, setPopup] = useState<{ kind: 'error' | 'duplicate'; text: string } | null>(null)
+  const [popup, setPopup] = useState<{ kind: 'error' | 'duplicate' | 'success'; text: string } | null>(null)
   const [manualCode, setManualCode] = useState('')
   const [round, setRound] = useState(1)
   const scannerRef = useRef<Html5Qrcode | null>(null)
   const busyRef = useRef(false)
   const duplicateRef = useRef(false)
+  const lastDupRef = useRef<{ memberId: string | null; at: number }>({ memberId: null, at: 0 })
 
   useEffect(() => {
     let active = true
@@ -109,6 +110,7 @@ export default function AttendanceScannerPanel({ eventId }: AttendanceScannerPan
     setScanDetails(null)
     setIsDuplicate(false)
     setPopup(null)
+    lastDupRef.current = { memberId: null, at: 0 }
     const scanner = new Html5Qrcode('qr-reader')
     scannerRef.current = scanner
     try {
@@ -177,13 +179,17 @@ export default function AttendanceScannerPanel({ eventId }: AttendanceScannerPan
           setState('error')
           setIsDuplicate(true)
           setScanDetails(await fetchScanDetails(result.registrationCode, result.memberId))
-          setPopup({ kind: 'duplicate', text: result.message })
+          const memberId = result.memberId ?? null
+          if (lastDupRef.current.memberId !== memberId || Date.now() - lastDupRef.current.at > 60000) {
+            lastDupRef.current = { memberId, at: Date.now() }
+            setPopup({ kind: 'duplicate', text: result.message })
+          }
           return
         }
         setState('success')
         setMessage(result.message)
         setScanDetails(await fetchScanDetails(result.registrationCode, result.memberId))
-        setPopup(null)
+        setPopup({ kind: 'success', text: result.message })
         return
       }
 
@@ -424,7 +430,7 @@ export default function AttendanceScannerPanel({ eventId }: AttendanceScannerPan
               </dl>
             </div>
           )}
-          {state === 'error' && (
+          {state === 'error' && !isDuplicate && (
             <p className="mt-3 text-center text-xs text-slate-400">
               Check the popup message and try again.
             </p>
@@ -454,7 +460,7 @@ export default function AttendanceScannerPanel({ eventId }: AttendanceScannerPan
       <Modal
         open={!!popup}
         onClose={() => setPopup(null)}
-        title={popup?.kind === 'duplicate' ? 'Already scanned' : 'Scan error'}
+        title={popup?.kind === 'error' ? 'Scan error' : popup?.kind === 'duplicate' ? 'QR already scanned' : 'QR scanned successfully'}
         footer={
           <button className="btn-primary" onClick={() => setPopup(null)}>
             OK
@@ -464,10 +470,10 @@ export default function AttendanceScannerPanel({ eventId }: AttendanceScannerPan
         <div
           className={cn(
             'flex items-start gap-3 rounded-xl p-4 text-sm font-semibold',
-            popup?.kind === 'duplicate' ? 'bg-amber-50 text-amber-800' : 'bg-red-50 text-red-700',
+            popup?.kind === 'error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700',
           )}
         >
-          {popup?.kind === 'duplicate' ? <AlertTriangle size={20} className="mt-0.5 shrink-0" /> : <XCircle size={20} className="mt-0.5 shrink-0" />}
+          {popup?.kind === 'error' ? <XCircle size={20} className="mt-0.5 shrink-0" /> : <CheckCircle2 size={20} className="mt-0.5 shrink-0" />}
           <span>{popup?.text}</span>
         </div>
       </Modal>
