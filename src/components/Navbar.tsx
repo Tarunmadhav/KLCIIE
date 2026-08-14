@@ -164,7 +164,7 @@ export default function Navbar() {
       </div>
 
       {open && (
-        <div className="border-t border-slate-200 bg-white px-4 py-3 md:hidden">
+        <div className="max-h-[calc(100dvh-4rem)] overflow-y-auto border-t border-slate-200 bg-white px-4 py-3 md:hidden">
           <nav className="flex flex-col gap-1">
             {navItems.map((item) => (
               <Link
