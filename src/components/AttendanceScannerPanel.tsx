@@ -4,7 +4,7 @@ import { Badge, TextInput } from '@/components/ui'
 import { supabase } from '@/lib/supabase'
 import type { Event } from '@/lib/types'
 import { cn, errorMessage, formatDateTime } from '@/lib/utils'
-import { Camera, CheckCircle2, UserRound, XCircle } from 'lucide-react'
+import { AlertTriangle, Camera, CheckCircle2, UserRound, XCircle } from 'lucide-react'
 
 type ScanState = 'scanning' | 'success' | 'error' | 'stopped'
 
@@ -53,10 +53,12 @@ export default function AttendanceScannerPanel({ eventId }: AttendanceScannerPan
   const [state, setState] = useState<ScanState>('stopped')
   const [message, setMessage] = useState('')
   const [scanDetails, setScanDetails] = useState<ScanDetails | null>(null)
+  const [isDuplicate, setIsDuplicate] = useState(false)
   const [manualCode, setManualCode] = useState('')
   const [round, setRound] = useState(1)
   const scannerRef = useRef<Html5Qrcode | null>(null)
   const busyRef = useRef(false)
+  const duplicateRef = useRef(false)
 
   useEffect(() => {
     let active = true
@@ -104,6 +106,7 @@ export default function AttendanceScannerPanel({ eventId }: AttendanceScannerPan
     setState('scanning')
     setMessage('')
     setScanDetails(null)
+    setIsDuplicate(false)
     const scanner = new Html5Qrcode('qr-reader')
     scannerRef.current = scanner
     try {
@@ -166,6 +169,14 @@ export default function AttendanceScannerPanel({ eventId }: AttendanceScannerPan
           : await markAttendance({ memberCode: code, qrEventId: eventId })
 
       if (result.ok) {
+        if (result.duplicate) {
+          duplicateRef.current = true
+          setState('error')
+          setIsDuplicate(true)
+          setMessage(result.message)
+          setScanDetails(await fetchScanDetails(result.registrationCode, result.memberId))
+          return
+        }
         setState('success')
         setMessage(result.message)
         setScanDetails(await fetchScanDetails(result.registrationCode, result.memberId))
@@ -180,15 +191,21 @@ export default function AttendanceScannerPanel({ eventId }: AttendanceScannerPan
         return
       }
 
+      setIsDuplicate(false)
       setState('error')
-      setMessage(
-        /event mismatch|no student registered|invalid attendance code|not registered/i.test(result.message)
-          ? 'No student registered for this event'
-          : result.message,
-      )
+      const msg = result.message
+      if (/invalid or expired attendance code/i.test(msg)) {
+        setMessage('This QR has expired — it rotates every few seconds. Ask the member to show the current code.')
+      } else if (/event mismatch|no student registered|not registered/i.test(msg)) {
+        setMessage('No student registered for this event')
+      } else {
+        setMessage(msg)
+      }
       setScanDetails(null)
     } finally {
       busyRef.current = false
+      const delay = duplicateRef.current ? 3200 : 1800
+      duplicateRef.current = false
       window.setTimeout(async () => {
         if (scannerRef.current) {
           try {
@@ -198,7 +215,7 @@ export default function AttendanceScannerPanel({ eventId }: AttendanceScannerPan
             // already stopped
           }
         }
-      }, 1800)
+      }, delay)
     }
   }
 
@@ -206,7 +223,14 @@ export default function AttendanceScannerPanel({ eventId }: AttendanceScannerPan
     registrationCode?: string
     memberCode?: string
     qrEventId?: string
-  }): Promise<{ ok: boolean; message: string; registrationCode?: string; memberId?: string; round?: number }> => {
+  }): Promise<{
+    ok: boolean
+    duplicate?: boolean
+    message: string
+    registrationCode?: string
+    memberId?: string
+    round?: number
+  }> => {
     const { registrationCode, memberCode, qrEventId } = opts
     if (!registrationCode && !memberCode) return { ok: false, message: 'Empty code scanned.' }
     const { data, error } = await supabase.rpc('mark_attendance', {
@@ -224,8 +248,30 @@ export default function AttendanceScannerPanel({ eventId }: AttendanceScannerPan
       }
       return { ok: false, message: errorMessage(error) }
     }
-    const memberId = (data as { member_id?: string } | null)?.member_id
-    const attRound = (data as { round?: number } | null)?.round
+    const d = (data ?? null) as {
+      duplicate?: boolean
+      member_id?: string | null
+      round?: number | null
+      marked_at?: string | null
+      marked_by?: { full_name?: string | null; ciie_id?: string | null } | null
+    } | null
+    const memberId = d?.member_id ?? undefined
+    const attRound = d?.round ?? round
+
+    if (d?.duplicate) {
+      const by = d.marked_by?.full_name ?? d.marked_by?.ciie_id ?? 'an unknown member'
+      return {
+        ok: true,
+        duplicate: true,
+        message: `This QR has already been scanned at ${
+          d.marked_at ? formatDateTime(d.marked_at) : 'an earlier time'
+        } by ${by} — attendance was already recorded for this round.`,
+        registrationCode,
+        memberId,
+        round: attRound,
+      }
+    }
+
     if (memberId) {
       const { data: profile } = await supabase.rpc('get_scan_details', {
         p_event_id: eventId,
@@ -235,13 +281,13 @@ export default function AttendanceScannerPanel({ eventId }: AttendanceScannerPan
       const name = (profile as { name?: string } | null)?.name
       return {
         ok: true,
-        message: `${name ?? 'Member'} marked present for Round ${attRound ?? round}.`,
+        message: `${name ?? 'Member'} marked present for Round ${attRound}.`,
         registrationCode,
         memberId,
-        round: attRound ?? round,
+        round: attRound,
       }
     }
-    return { ok: true, message: `Attendance recorded for Round ${attRound ?? round}.`, registrationCode, memberId, round: attRound ?? round }
+    return { ok: true, message: `Attendance recorded for Round ${attRound}.`, registrationCode, memberId, round: attRound }
   }
 
   const fetchScanDetails = async (registrationCode?: string, memberId?: string): Promise<ScanDetails | null> => {
@@ -350,6 +396,24 @@ export default function AttendanceScannerPanel({ eventId }: AttendanceScannerPan
                   <Detail label="Marked by" value={scanDetails.marked_by.full_name} />
                 )}
                 {scanDetails.marked_at && <Detail label="Marked at" value={scanDetails.marked_at} />}
+              </dl>
+            </div>
+          )}
+          {isDuplicate && scanDetails && (
+            <div className="mt-3 rounded-xl border border-red-300 bg-red-50 p-4 text-sm shadow-sm">
+              <p className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-red-500">
+                <AlertTriangle size={14} /> Already scanned — duplicate alert
+              </p>
+              <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
+                {scanDetails.name && <Detail label="Name" value={scanDetails.name} strong />}
+                {scanDetails.ciie_id && <Detail label="CIIE ID" value={scanDetails.ciie_id} mono />}
+                {scanDetails.student_id && <Detail label="Student ID" value={scanDetails.student_id} />}
+                {scanDetails.registration_code && <Detail label="Registration" value={scanDetails.registration_code} mono />}
+                {scanDetails.round != null && <Detail label="Round" value={`Round ${scanDetails.round}`} />}
+                {scanDetails.marked_by?.full_name && (
+                  <Detail label="Already scanned by" value={scanDetails.marked_by.full_name} />
+                )}
+                {scanDetails.marked_at && <Detail label="Already scanned at" value={scanDetails.marked_at} />}
               </dl>
             </div>
           )}

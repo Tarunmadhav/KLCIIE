@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { Avatar, Badge, Modal, PageLoader } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
+import { downloadIcs, googleCalendarUrl } from '@/lib/calendar'
 import { fetchEvent, fetchEventCounts } from '@/lib/queries'
 import { supabase } from '@/lib/supabase'
 import type { Announcement, Event, EventRegistration, EventRole, GalleryItem } from '@/lib/types'
@@ -315,6 +316,49 @@ export default function EventDetail() {
             <Link to="/upcoming-events" className="btn-secondary">
               Explore More Events
             </Link>
+          </div>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() =>
+                window.open(
+                  googleCalendarUrl({
+                    title: event.title,
+                    startDate: event.start_date,
+                    startTime: event.start_time,
+                    endDate: event.end_date,
+                    endTime: event.end_time,
+                    venue: event.venue,
+                    description: event.description,
+                  }),
+                  '_blank',
+                  'noopener,noreferrer',
+                )
+              }
+            >
+              <CalendarDays size={15} /> Add to Calendar
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() =>
+                downloadIcs(
+                  {
+                    title: event.title,
+                    startDate: event.start_date,
+                    startTime: event.start_time,
+                    endDate: event.end_date,
+                    endTime: event.end_time,
+                    venue: event.venue,
+                    description: event.description,
+                  },
+                  `${event.title.replace(/[^\w\s]/g, '').trim() || 'event'}-calendar.ics`,
+                )
+              }
+            >
+              <CalendarDays size={15} /> iCal (.ics)
+            </button>
           </div>
         </Modal>
       )}

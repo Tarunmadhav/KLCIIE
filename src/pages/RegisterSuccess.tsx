@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
-import { Download, Printer } from 'lucide-react'
+import { CalendarPlus, Download, FileDown, Printer } from 'lucide-react'
 import Logo from '@/components/Logo'
 import { PageLoader } from '@/components/ui'
 import { useBranding } from '@/hooks/useBranding'
 import { useAuth } from '@/hooks/useAuth'
+import { downloadIcs, googleCalendarUrl } from '@/lib/calendar'
 import { qrWithLogoDataUrl } from '@/lib/qr'
 import { supabase } from '@/lib/supabase'
 import type { EventRegistration } from '@/lib/types'
@@ -16,7 +17,15 @@ export default function RegisterSuccess() {
   const branding = useBranding()
   const location = useLocation()
   const [reg, setReg] = useState<EventRegistration | null>(null)
-  const [event, setEvent] = useState<{ title: string; start_date: string } | null>(null)
+  const [event, setEvent] = useState<{
+    title: string
+    start_date: string
+    start_time: string | null
+    end_date: string | null
+    end_time: string | null
+    venue: string | null
+    description: string | null
+  } | null>(null)
   const [qr, setQr] = useState<string>('')
   const [loading, setLoading] = useState(true)
 
@@ -34,10 +43,24 @@ export default function RegisterSuccess() {
         setLoading(false)
         return
       }
-      const { data: ev } = await supabase.from('events').select('title, start_date').eq('id', r.event_id).maybeSingle()
+      const { data: ev } = await supabase
+        .from('events')
+        .select('title, start_date, start_time, end_date, end_time, venue, description')
+        .eq('id', r.event_id)
+        .maybeSingle()
       if (active) {
         setReg(r)
-        setEvent((ev as { title: string; start_date: string } | null) ?? null)
+        setEvent(
+          (ev as {
+            title: string
+            start_date: string
+            start_time: string | null
+            end_date: string | null
+            end_time: string | null
+            venue: string | null
+            description: string | null
+          } | null) ?? null,
+        )
         setQr(await qrWithLogoDataUrl(r.registration_code, branding.qr_attendance_logo_url ?? branding.ciie_logo_url ?? '/logo.jpg'))
         setLoading(false)
       }
@@ -57,6 +80,19 @@ export default function RegisterSuccess() {
       a.click()
     }
   }, [qr, reg])
+
+  const calendarEvent = useMemo(() => {
+    if (!event) return null
+    return {
+      title: event.title,
+      startDate: event.start_date,
+      startTime: event.start_time,
+      endDate: event.end_date,
+      endTime: event.end_time,
+      venue: event.venue,
+      description: event.description,
+    }
+  }, [event])
 
   if (loading) return <PageLoader />
   if (!reg) {
@@ -102,6 +138,25 @@ export default function RegisterSuccess() {
           <Printer size={15} /> Print
         </button>
       </div>
+
+      {calendarEvent && (
+        <div className="mt-5 flex flex-wrap justify-center gap-3">
+          <button
+            className="btn-primary"
+            onClick={() => window.open(googleCalendarUrl(calendarEvent), '_blank', 'noopener,noreferrer')}
+          >
+            <CalendarPlus size={15} /> Add to Calendar
+          </button>
+          <button
+            className="btn-secondary"
+            onClick={() =>
+              downloadIcs(calendarEvent, `${calendarEvent.title.replace(/[^\w\s]/g, '').trim() || 'event'}-calendar.ics`)
+            }
+          >
+            <FileDown size={15} /> iCal (.ics)
+          </button>
+        </div>
+      )}
 
       <div className="mt-6 flex items-center justify-center gap-4 text-sm">
         <Link to="/dashboard" className="font-semibold text-primary-600 hover:underline">

@@ -16,6 +16,7 @@ interface RegisteredEvent {
 interface RoundInfo {
   round: number
   code?: string
+  issued_at?: string
   used: boolean
   status: 'present' | 'absent'
   method?: string
@@ -54,6 +55,11 @@ export default function MemberQrPage() {
   const [copied, setCopied] = useState<string | null>(null)
   const [activeRound, setActiveRound] = useState<number | null>(null)
   const [nowTick, setNowTick] = useState(0)
+  const [nowMs, setNowMs] = useState(() => Date.now())
+
+  // Attendance QR codes rotate server-side every ~10 seconds so a
+  // screenshotted QR expires seconds after it was captured.
+  const QR_ROTATE_MS = 10000
 
   const copyCode = async (code: string) => {
     try {
@@ -143,6 +149,23 @@ export default function MemberQrPage() {
     }
   }, [eventId, refreshQr])
 
+  // Rotating QR engine: while the event is live, re-poll every few seconds so
+  // the server rotates the code and the screen always shows the current one.
+  const started = !!qrInfo?.started
+
+  // 1s tick used for the "refreshes in Ns" countdown next to the QR.
+  useEffect(() => {
+    const id = window.setInterval(() => setNowMs(Date.now()), 1000)
+    return () => window.clearInterval(id)
+  }, [])
+
+  const shownRound = useMemo(
+    () => (qrInfo?.rounds ?? []).find((x) => x.round === activeRound) ?? (qrInfo?.rounds ?? [])[0],
+    [qrInfo, activeRound],
+  )
+  const shownIssuedAt = shownRound?.issued_at ? new Date(shownRound.issued_at).getTime() : null
+  const refreshIn = shownIssuedAt ? Math.max(0, Math.ceil((shownIssuedAt + QR_ROTATE_MS - nowMs) / 1000)) : 0
+
   // Auto-transition at the event's start and end times: the QR appears the
   // moment the event starts and closes once it ends — no manual refresh. The
   // end time is also read from the event row so this works even if the server
@@ -173,6 +196,12 @@ export default function MemberQrPage() {
   const qrClosed = !!qrInfo?.closed || eventEnded
   const endDate = qrInfo?.end_date ?? selectedEvent?.end_date ?? null
   const endTime = qrInfo?.end_time ?? selectedEvent?.end_time ?? null
+
+  useEffect(() => {
+    if (!eventId || !started || qrClosed) return
+    const id = window.setInterval(() => void refreshQr(eventId, true), 5000)
+    return () => window.clearInterval(id)
+  }, [eventId, started, qrClosed, refreshQr])
 
   const onSelectEvent = (id: string) => {
     setEventId(id)
@@ -281,9 +310,10 @@ export default function MemberQrPage() {
 
                 {(qrInfo.rounds ?? []).length > 0 &&
                   (() => {
-                    const r = (qrInfo.rounds ?? []).find((x) => x.round === activeRound) ?? (qrInfo.rounds ?? [])[0]
-                    const dataUrl = qrMap[r.round]
-                    const code = r.code
+                    const r = shownRound
+                    const dataUrl = r ? qrMap[r.round] : undefined
+                    const code = r?.code
+                    if (!r) return null
                     return (
                       <div className="mx-auto max-w-xs rounded-2xl border-2 border-slate-200 bg-white p-4 text-center">
                         <div className="relative mx-auto w-fit">
@@ -306,7 +336,14 @@ export default function MemberQrPage() {
                         {r.status === 'present' ? (
                           <Badge tone="green">{r.marked_at ? `Present · ${formatDateTime(r.marked_at)}` : 'Present'}</Badge>
                         ) : (
-                          <Badge tone="slate">Not scanned yet</Badge>
+                          <>
+                            <Badge tone="slate">Not scanned yet</Badge>
+                            {refreshIn > 0 && (
+                              <p className="mt-1.5 flex items-center justify-center gap-1.5 text-[11px] font-semibold text-amber-600">
+                                <RefreshCw size={12} /> Refreshes in {refreshIn}s
+                              </p>
+                            )}
+                          </>
                         )}
                         {code && (
                           <button
@@ -323,7 +360,7 @@ export default function MemberQrPage() {
                   })()}
 
                 <p className="mt-3 flex items-center justify-center gap-1.5 rounded-xl bg-slate-100 px-4 py-3 text-xs text-slate-500">
-                  <QrIcon size={15} /> Updates live — the moment a CIIE member marks you present, the tick appears and the QR refreshes automatically.
+                  <QrIcon size={15} /> The QR rotates automatically every ~10 seconds — show the current one, and never share a screenshot. The moment you're marked present, the tick appears instantly.
                 </p>
                 <button className="btn-secondary mt-3 w-full" onClick={() => refreshQr(eventId)}>
                   <RefreshCw size={14} /> Refresh QRs

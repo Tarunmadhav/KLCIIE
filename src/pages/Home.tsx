@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, Navigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import {
   ArrowRight,
   Award,
@@ -67,7 +67,7 @@ const features = [
 ]
 
 export default function Home() {
-  const { user, loading: authLoading } = useAuth()
+  const { loading: authLoading } = useAuth()
   const branding = useBranding()
   const settings = useSettings()
   const [events, setEvents] = useState<Event[]>([])
@@ -105,7 +105,6 @@ export default function Home() {
   const totalRegistrations = Object.values(counts).reduce((a, b) => a + b, 0)
 
   if (authLoading) return <PageLoader />
-  if (user) return <Navigate to="/dashboard" replace />
 
   return (
     <div className="overflow-x-clip">
