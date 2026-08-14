@@ -22,6 +22,14 @@ const splitOptions = (raw: string): string[] =>
     .map((o) => o.trim())
     .filter(Boolean)
 
+const toLocalInputValue = (iso?: string | null): string => {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 export default function EventEdit() {
   const { id } = useParams<{ id?: string }>()
   const navigate = useNavigate()
@@ -62,6 +70,7 @@ export default function EventEdit() {
       .then(({ data }) => {
         if (!active || !data) return
         const e = data as Record<string, unknown>
+        const rounds = Number(e.attendance_rounds)
         setForm({
           title: String(e.title ?? ''),
           slug: String(e.slug ?? ''),
@@ -73,9 +82,9 @@ export default function EventEdit() {
           end_time: String(e.end_time ?? ''),
           venue: String(e.venue ?? ''),
           mode: (e.mode as 'offline' | 'online' | 'hybrid') ?? 'offline',
-          registration_deadline: e.registration_deadline ? String(e.registration_deadline).slice(0, 16) : '',
+          registration_deadline: e.registration_deadline ? toLocalInputValue(String(e.registration_deadline)) : '',
           seats: String(e.seats ?? '100'),
-          attendance_rounds: String(e.attendance_rounds ?? '1'),
+          attendance_rounds: Number.isFinite(rounds) && rounds >= 1 ? String(rounds) : '1',
           status: (e.status as 'draft' | 'published' | 'completed' | 'cancelled') ?? 'draft',
           registration_enabled: Boolean(e.registration_enabled),
           show_team_public: Boolean(e.show_team_public),

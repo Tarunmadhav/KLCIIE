@@ -34,11 +34,13 @@ export default function PhoneInput({
   onChange,
   placeholder = '98765 43210',
   disabled,
+  required,
 }: {
   value: string
   onChange: (v: string) => void
   placeholder?: string
   disabled?: boolean
+  required?: boolean
 }) {
   const { dial, number } = parsePhone(value)
   const options = COUNTRY_CODES.some((c) => c.dial === dial)
@@ -63,6 +65,7 @@ export default function PhoneInput({
       <TextInput
         inputMode="tel"
         disabled={disabled}
+        required={required}
         value={number}
         onChange={(e) => onChange(`${dial} ${e.target.value.replace(/\D/g, '').slice(0, 15)}`)}
         placeholder={placeholder}

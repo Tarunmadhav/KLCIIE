@@ -65,8 +65,16 @@ export default function EventRegister() {
   const fields = (event.form_fields as unknown as FormField[]) ?? []
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name.trim() || !studentId.trim() || !email.trim()) {
-      setError('Please fill in your name, student ID and email.')
+    if (
+      !name.trim() ||
+      !studentId.trim() ||
+      !email.trim() ||
+      !phone.trim() ||
+      !department.trim() ||
+      !year.trim() ||
+      !college.trim()
+    ) {
+      setError('Please fill in all required fields.')
       setBusy(false)
       return
     }
@@ -121,23 +129,23 @@ export default function EventRegister() {
 
       <form onSubmit={submit} className="card mt-6 space-y-4 p-6">
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Full name">
+          <Field label="Full name *">
             <TextInput required value={name} onChange={(e) => setName(e.target.value)} placeholder="Rahul Kumar" />
           </Field>
-          <Field label="Student ID (university roll number)">
+          <Field label="Student ID (university roll number) *">
             <TextInput required value={studentId} onChange={(e) => setStudentId(e.target.value.replace(/\D/g, '').slice(0, 20))} placeholder="e.g. 2300123456" inputMode="numeric" />
           </Field>
-          <Field label="Email">
+          <Field label="Email *">
             <TextInput type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
           </Field>
-          <Field label="Phone">
-            <PhoneInput value={phone} onChange={setPhone} />
+          <Field label="Phone *">
+            <PhoneInput required value={phone} onChange={setPhone} />
           </Field>
-          <Field label="Department">
-            <TextInput value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="CSE" />
+          <Field label="Department *">
+            <TextInput required value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="CSE" />
           </Field>
-          <Field label="Year of study">
-            <SelectInput value={year} onChange={(e) => setYear(e.target.value)}>
+          <Field label="Year of study *">
+            <SelectInput required value={year} onChange={(e) => setYear(e.target.value)}>
               <option value="">Select year</option>
               <option>1st Year</option>
               <option>2nd Year</option>
@@ -145,8 +153,8 @@ export default function EventRegister() {
               <option>4th Year</option>
             </SelectInput>
           </Field>
-          <Field label="College / Institution">
-            <TextInput value={college} onChange={(e) => setCollege(e.target.value)} placeholder="KL University" />
+          <Field label="College / Institution *">
+            <TextInput required value={college} onChange={(e) => setCollege(e.target.value)} placeholder="KL University" />
           </Field>
         </div>
 
