@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ExternalLink, Github, Linkedin, Mail, MapPin, Rocket, Twitter } from 'lucide-react'
+import { ExternalLink, Github, Linkedin, MapPin, Rocket, Twitter } from 'lucide-react'
 import { EmptyState, Modal } from '@/components/ui'
 import Reveal from '@/components/Reveal'
 import { supabase } from '@/lib/supabase'

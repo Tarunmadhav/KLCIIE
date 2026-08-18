@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Rocket, Pencil, Trash2, ExternalLink } from 'lucide-react'
-import { Avatar, Button, EmptyState, PageHeader, PageLoader } from '@/components/ui'
+import { Avatar, EmptyState, PageHeader, PageLoader } from '@/components/ui'
 import StartupForm from '@/components/startups/StartupForm'
 import { supabase } from '@/lib/supabase'
 import type { Startup } from '@/lib/types'
