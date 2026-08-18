@@ -141,7 +141,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const boot = async () => {
       const { data: sessionData } = await supabase.auth.getSession()
-      setUser(sessionData.session?.user ?? null)
+      const sessionUser = sessionData.session?.user ?? null
+      setUser(sessionUser)
+
+      if (!sessionUser) {
+        setLoading(false)
+        return
+      }
+
       await loadProfile()
       await refreshMfaState()
       setLoading(false)

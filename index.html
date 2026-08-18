@@ -17,9 +17,54 @@
       name="description"
       content="Koneru Lakshmaiah CIIE — Centre for Innovation, Incubation & Entrepreneurship. Events, community, recognition and more."
     />
+    <style>
+      .ciie-skel{min-height:100vh;display:flex;flex-direction:column;background:#fff;font-family:Inter,system-ui,sans-serif}
+      .ciie-skel-nav{display:flex;align-items:center;gap:1rem;padding:1rem 1.5rem;border-bottom:1px solid #e2e8f0}
+      .ciie-skel-logo{width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,#7c3aed,#a78bfa)}
+      .ciie-skel-title{font-weight:700;color:#1e293b;font-size:1rem}
+      .ciie-skel-nav-items{display:flex;gap:1.5rem;margin-left:auto}
+      .ciie-skel-nav-item{width:48px;height:10px;border-radius:4px;background:#e2e8f0}
+      .ciie-skel-hero{padding:3rem 1.5rem 2rem;text-align:center}
+      .ciie-skel-hero-line{margin:0 auto 0.75rem;border-radius:4px;background:#e2e8f0}
+      .ciie-skel-hero-line.l1{width:60%;height:24px}
+      .ciie-skel-hero-line.l2{width:80%;height:12px}
+      .ciie-skel-hero-line.l3{width:45%;height:12px}
+      .ciie-skel-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem;padding:0 1.5rem 3rem}
+      .ciie-skel-card{border:1px solid #e2e8f0;border-radius:12px;padding:1rem;overflow:hidden}
+      .ciie-skel-card-img{width:100%;height:140px;border-radius:8px;background:#f1f5f9;margin-bottom:0.75rem}
+      .ciie-skel-card-line{height:10px;border-radius:4px;background:#e2e8f0;margin-bottom:0.5rem}
+      .ciie-skel-card-line.s{width:60%}
+      .ciie-skel-card-line.m{width:80%}
+      @keyframes ciie-pulse{0%,100%{opacity:1}50%{opacity:.4}}
+      .ciie-skel *[class]{animation:ciie-pulse 1.5s ease-in-out infinite}
+      .ciie-skel{opacity:1;transition:opacity .3s}
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="ciie-skel" aria-hidden="true">
+        <nav class="ciie-skel-nav">
+          <div class="ciie-skel-logo"></div>
+          <span class="ciie-skel-title">KL CIIE</span>
+          <div class="ciie-skel-nav-items">
+            <div class="ciie-skel-nav-item"></div>
+            <div class="ciie-skel-nav-item"></div>
+            <div class="ciie-skel-nav-item"></div>
+            <div class="ciie-skel-nav-item"></div>
+          </div>
+        </nav>
+        <section class="ciie-skel-hero">
+          <div class="ciie-skel-hero-line l1"></div>
+          <div class="ciie-skel-hero-line l2"></div>
+          <div class="ciie-skel-hero-line l3"></div>
+        </section>
+        <div class="ciie-skel-cards">
+          <div class="ciie-skel-card"><div class="ciie-skel-card-img"></div><div class="ciie-skel-card-line m"></div><div class="ciie-skel-card-line s"></div></div>
+          <div class="ciie-skel-card"><div class="ciie-skel-card-img"></div><div class="ciie-skel-card-line m"></div><div class="ciie-skel-card-line s"></div></div>
+          <div class="ciie-skel-card"><div class="ciie-skel-card-img"></div><div class="ciie-skel-card-line m"></div><div class="ciie-skel-card-line s"></div></div>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from '@/hooks/useAuth'
 import { BrandingProvider } from '@/hooks/useBranding'
@@ -5,86 +6,87 @@ import { SettingsProvider } from '@/hooks/useSettings'
 import { RequireAdmin, RequireAuth, RequireCiiieMember, RequireSuperAdmin, MfaResetWatcher } from '@/components/guards'
 import { AuthLayout, PublicLayout } from '@/components/Layouts'
 import OfflineIndicator from '@/components/OfflineIndicator'
+import { PageLoader } from '@/components/ui'
 
-import Home from '@/pages/Home'
-import About from '@/pages/About'
-import Contact from '@/pages/Contact'
-import UpcomingEvents from '@/pages/UpcomingEvents'
-import EventsList from '@/pages/EventsList'
-import Gallery from '@/pages/Gallery'
-import EventDetail from '@/pages/EventDetail'
-import EventRegister from '@/pages/EventRegister'
-import RegisterSuccess from '@/pages/RegisterSuccess'
-import Leaderboard from '@/pages/Leaderboard'
-import MembersList from '@/pages/MembersList'
-import MemberPublic from '@/pages/MemberPublic'
-import AmtpsPage from '@/pages/AmtpsPage'
-import AmtpsMemberPage from '@/pages/AmtpsMemberPage'
-import StartupsPage from '@/pages/StartupsPage'
-import PostsList from '@/pages/PostsList'
-import PostDetail from '@/pages/PostDetail'
-import Login from '@/pages/Login'
-import Signup from '@/pages/Signup'
-import Register from '@/pages/Register'
-import RoleRegister from '@/pages/RoleRegister'
-import RoleRegisterSuccess from '@/pages/RoleRegisterSuccess'
-import VerifyApplication from '@/pages/VerifyApplication'
-import NotFound from '@/pages/NotFound'
+const Home = lazy(() => import('@/pages/Home'))
+const About = lazy(() => import('@/pages/About'))
+const Contact = lazy(() => import('@/pages/Contact'))
+const UpcomingEvents = lazy(() => import('@/pages/UpcomingEvents'))
+const EventsList = lazy(() => import('@/pages/EventsList'))
+const Gallery = lazy(() => import('@/pages/Gallery'))
+const EventDetail = lazy(() => import('@/pages/EventDetail'))
+const EventRegister = lazy(() => import('@/pages/EventRegister'))
+const RegisterSuccess = lazy(() => import('@/pages/RegisterSuccess'))
+const Leaderboard = lazy(() => import('@/pages/Leaderboard'))
+const MembersList = lazy(() => import('@/pages/MembersList'))
+const MemberPublic = lazy(() => import('@/pages/MemberPublic'))
+const AmtpsPage = lazy(() => import('@/pages/AmtpsPage'))
+const AmtpsMemberPage = lazy(() => import('@/pages/AmtpsMemberPage'))
+const StartupsPage = lazy(() => import('@/pages/StartupsPage'))
+const PostsList = lazy(() => import('@/pages/PostsList'))
+const PostDetail = lazy(() => import('@/pages/PostDetail'))
+const Login = lazy(() => import('@/pages/Login'))
+const Signup = lazy(() => import('@/pages/Signup'))
+const Register = lazy(() => import('@/pages/Register'))
+const RoleRegister = lazy(() => import('@/pages/RoleRegister'))
+const RoleRegisterSuccess = lazy(() => import('@/pages/RoleRegisterSuccess'))
+const VerifyApplication = lazy(() => import('@/pages/VerifyApplication'))
+const NotFound = lazy(() => import('@/pages/NotFound'))
 
-import MfaSetup from '@/pages/auth/MfaSetup'
-import MfaVerify from '@/pages/auth/MfaVerify'
+const MfaSetup = lazy(() => import('@/pages/auth/MfaSetup'))
+const MfaVerify = lazy(() => import('@/pages/auth/MfaVerify'))
 
-import MemberLayout from '@/pages/member/MemberLayout'
-import MemberDashboard from '@/pages/member/Dashboard'
-import MyEvents from '@/pages/member/MyEvents'
-import MyPoints from '@/pages/member/MyPoints'
-import ProfileEdit from '@/pages/member/ProfileEdit'
-import MemberQrPage from '@/pages/member/MemberQr'
-import MemberDuties from '@/pages/member/Duties'
-import MemberScanQr from '@/pages/member/ScanQr'
-import RecruitSuccess from '@/pages/RecruitSuccess'
-import RecruitLayout from '@/pages/member/recruit/RecruitLayout'
-import RecruitGd from '@/pages/member/recruit/RecruitGd'
-import RecruitInterview from '@/pages/member/recruit/RecruitInterview'
-import RecruitFinalSelection from '@/pages/member/recruit/RecruitFinalSelection'
+const MemberLayout = lazy(() => import('@/pages/member/MemberLayout'))
+const MemberDashboard = lazy(() => import('@/pages/member/Dashboard'))
+const MyEvents = lazy(() => import('@/pages/member/MyEvents'))
+const MyPoints = lazy(() => import('@/pages/member/MyPoints'))
+const ProfileEdit = lazy(() => import('@/pages/member/ProfileEdit'))
+const MemberQrPage = lazy(() => import('@/pages/member/MemberQr'))
+const MemberDuties = lazy(() => import('@/pages/member/Duties'))
+const MemberScanQr = lazy(() => import('@/pages/member/ScanQr'))
+const RecruitSuccess = lazy(() => import('@/pages/RecruitSuccess'))
+const RecruitLayout = lazy(() => import('@/pages/member/recruit/RecruitLayout'))
+const RecruitGd = lazy(() => import('@/pages/member/recruit/RecruitGd'))
+const RecruitInterview = lazy(() => import('@/pages/member/recruit/RecruitInterview'))
+const RecruitFinalSelection = lazy(() => import('@/pages/member/recruit/RecruitFinalSelection'))
 
-import AdminLayout from '@/pages/admin/AdminLayout'
-import AdminDashboard from '@/pages/admin/Dashboard'
-import EventsAdmin from '@/pages/admin/events/EventsAdmin'
-import EventEdit from '@/pages/admin/events/EventEdit'
-import EventDetailAdmin from '@/pages/admin/events/EventDetailAdmin'
-import EventTeam from '@/pages/admin/events/EventTeam'
-import EventRoles from '@/pages/admin/EventRoles'
-import PointRules from '@/pages/admin/PointRules'
-import PointsAdmin from '@/pages/admin/Points'
-import MembersAdmin from '@/pages/admin/MembersAdmin'
-import MembersAdd from '@/pages/admin/MembersAdd'
-import AmtpsAdmin from '@/pages/admin/AmtpsAdmin'
-import MemberDetailAdmin from '@/pages/admin/MemberDetailAdmin'
-import AttendanceScanner from '@/pages/admin/AttendanceScanner'
-import AttendanceAdmin from '@/pages/admin/AttendanceAdmin'
-import CertificatesAdmin from '@/pages/admin/Certificates'
-import GalleryAdmin from '@/pages/admin/Gallery'
-import GalleryLinksAdmin from '@/pages/admin/GalleryLinks'
-import AnnouncementsAdmin from '@/pages/admin/Announcements'
-import ContentAdmin from '@/pages/admin/Content'
-import ReportsAdmin from '@/pages/admin/Reports'
-import FormsSubmittedAdmin from '@/pages/admin/FormsSubmitted'
-import AttendanceSubmittedAdmin from '@/pages/admin/AttendanceSubmitted'
-import BrandingAdmin from '@/pages/admin/Branding'
-import AuditLogsAdmin from '@/pages/admin/AuditLogs'
-import AdminsAdmin from '@/pages/admin/Admins'
-import UserRolesAdmin from '@/pages/admin/UserRoles'
-import RecruitsAdmin from '@/pages/admin/Recruits'
-import SettingsAdmin from '@/pages/admin/Settings'
-import RegistrationKeysAdmin from '@/pages/admin/RegistrationKeys'
-import DutiesAdmin from '@/pages/admin/Duties'
-import LiveRegistrationsAdmin from '@/pages/admin/recruit/LiveRegistrations'
-import RecruitFormsAdmin from '@/pages/admin/recruit/RecruitForms'
-import RejectPermissionsAdmin from '@/pages/admin/recruit/RejectPermissions'
-import SmtpSettingsAdmin from '@/pages/admin/recruit/SmtpSettings'
-import SendMailAdmin from '@/pages/admin/SendMail'
-import StartupsAdmin from '@/pages/admin/StartupsAdmin'
+const AdminLayout = lazy(() => import('@/pages/admin/AdminLayout'))
+const AdminDashboard = lazy(() => import('@/pages/admin/Dashboard'))
+const EventsAdmin = lazy(() => import('@/pages/admin/events/EventsAdmin'))
+const EventEdit = lazy(() => import('@/pages/admin/events/EventEdit'))
+const EventDetailAdmin = lazy(() => import('@/pages/admin/events/EventDetailAdmin'))
+const EventTeam = lazy(() => import('@/pages/admin/events/EventTeam'))
+const EventRoles = lazy(() => import('@/pages/admin/EventRoles'))
+const PointRules = lazy(() => import('@/pages/admin/PointRules'))
+const PointsAdmin = lazy(() => import('@/pages/admin/Points'))
+const MembersAdmin = lazy(() => import('@/pages/admin/MembersAdmin'))
+const MembersAdd = lazy(() => import('@/pages/admin/MembersAdd'))
+const AmtpsAdmin = lazy(() => import('@/pages/admin/AmtpsAdmin'))
+const MemberDetailAdmin = lazy(() => import('@/pages/admin/MemberDetailAdmin'))
+const AttendanceScanner = lazy(() => import('@/pages/admin/AttendanceScanner'))
+const AttendanceAdmin = lazy(() => import('@/pages/admin/AttendanceAdmin'))
+const CertificatesAdmin = lazy(() => import('@/pages/admin/Certificates'))
+const GalleryAdmin = lazy(() => import('@/pages/admin/Gallery'))
+const GalleryLinksAdmin = lazy(() => import('@/pages/admin/GalleryLinks'))
+const AnnouncementsAdmin = lazy(() => import('@/pages/admin/Announcements'))
+const ContentAdmin = lazy(() => import('@/pages/admin/Content'))
+const ReportsAdmin = lazy(() => import('@/pages/admin/Reports'))
+const FormsSubmittedAdmin = lazy(() => import('@/pages/admin/FormsSubmitted'))
+const AttendanceSubmittedAdmin = lazy(() => import('@/pages/admin/AttendanceSubmitted'))
+const BrandingAdmin = lazy(() => import('@/pages/admin/Branding'))
+const AuditLogsAdmin = lazy(() => import('@/pages/admin/AuditLogs'))
+const AdminsAdmin = lazy(() => import('@/pages/admin/Admins'))
+const UserRolesAdmin = lazy(() => import('@/pages/admin/UserRoles'))
+const RecruitsAdmin = lazy(() => import('@/pages/admin/Recruits'))
+const SettingsAdmin = lazy(() => import('@/pages/admin/Settings'))
+const RegistrationKeysAdmin = lazy(() => import('@/pages/admin/RegistrationKeys'))
+const DutiesAdmin = lazy(() => import('@/pages/admin/Duties'))
+const LiveRegistrationsAdmin = lazy(() => import('@/pages/admin/recruit/LiveRegistrations'))
+const RecruitFormsAdmin = lazy(() => import('@/pages/admin/recruit/RecruitForms'))
+const RejectPermissionsAdmin = lazy(() => import('@/pages/admin/recruit/RejectPermissions'))
+const SmtpSettingsAdmin = lazy(() => import('@/pages/admin/recruit/SmtpSettings'))
+const SendMailAdmin = lazy(() => import('@/pages/admin/SendMail'))
+const StartupsAdmin = lazy(() => import('@/pages/admin/StartupsAdmin'))
 
 export default function App() {
   return (
@@ -94,6 +96,7 @@ export default function App() {
         <BrowserRouter>
           <OfflineIndicator />
           <MfaResetWatcher />
+          <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route element={<PublicLayout />}>
               <Route path="/" element={<Home />} />
@@ -190,6 +193,7 @@ export default function App() {
 
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </Suspense>
         </BrowserRouter>
       </AuthProvider>
       </SettingsProvider>

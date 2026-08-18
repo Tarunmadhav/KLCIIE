@@ -1,4 +1,6 @@
-import QRCode from 'qrcode'
+async function loadQRCode() {
+  return import('qrcode')
+}
 
 // QRs encode opaque codes only (attendance codes / REG- ticket codes). Personal
 // data is never embedded in the QR content, so an external scanner (phone
@@ -8,6 +10,7 @@ import QRCode from 'qrcode'
  * Plain QR data URL (no logo) — used for the ticket so it always scans.
  */
 export async function qrDataUrl(text: string, size = 320): Promise<string> {
+  const QRCode = await loadQRCode()
   return QRCode.toDataURL(text, {
     errorCorrectionLevel: 'H',
     margin: 2,
@@ -22,6 +25,7 @@ export async function qrDataUrl(text: string, size = 320): Promise<string> {
  * the QR stays readable. The logo is drawn on a white rounded backing.
  */
 export async function qrWithLogoDataUrl(text: string, logoUrl?: string | null, size = 720): Promise<string> {
+  const QRCode = await loadQRCode()
   return new Promise((resolve, reject) => {
     const canvas = document.createElement('canvas')
     canvas.width = size

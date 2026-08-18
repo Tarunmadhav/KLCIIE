@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Html5Qrcode } from 'html5-qrcode'
+import type { Html5Qrcode } from 'html5-qrcode'
 import { Badge, Modal, TextInput } from '@/components/ui'
 import { supabase } from '@/lib/supabase'
 import type { Event } from '@/lib/types'
@@ -111,6 +111,7 @@ export default function AttendanceScannerPanel({ eventId }: AttendanceScannerPan
     setIsDuplicate(false)
     setPopup(null)
     lastDupRef.current = { memberId: null, at: 0 }
+    const { Html5Qrcode } = await import('html5-qrcode')
     const scanner = new Html5Qrcode('qr-reader')
     scannerRef.current = scanner
     try {

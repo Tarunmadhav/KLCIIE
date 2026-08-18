@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { MailCheck, UserPlus } from 'lucide-react'
+import { CalendarCheck, MailCheck, UserPlus } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useSettings } from '@/hooks/useSettings'
 import { Button, Field, Spinner, TextInput } from '@/components/ui'
@@ -24,6 +24,7 @@ export default function Signup() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
+  const [submitted, setSubmitted] = useState<{ fullName: string; batch: 1 | 2 | null } | null>(null)
 
   useEffect(() => {
     if (!settings.allow_public_signup) {
@@ -79,6 +80,13 @@ export default function Signup() {
       setError('Could not create your application. Please try again.')
       return
     }
+
+    if (!settings.signup_email_otp) {
+      setBusy(false)
+      setSubmitted({ fullName: info.full_name ?? fullName.trim(), batch: null })
+      return
+    }
+
     const nav = () =>
       navigate('/verify-application', {
         state: {
@@ -117,6 +125,29 @@ export default function Signup() {
 
   if (!settings.allow_public_signup) return null
 
+  if (submitted) {
+    return (
+      <div className="card overflow-hidden">
+        <div className="bg-gradient-to-r from-primary-600 to-primary-800 px-8 py-10 text-center text-white">
+          <CalendarCheck size={40} className="mx-auto mb-3" />
+          <h1 className="text-2xl font-extrabold">Application received!</h1>
+          <p className="mt-1 text-sm text-primary-100">
+            Welcome to CIIE, {submitted.fullName}. Your application is being reviewed.
+          </p>
+        </div>
+        <div className="px-8 py-8 text-center">
+          <p className="text-sm text-slate-500">
+            We've received your application. The CIIE team will review it and get back to you with your GD &amp;
+            interview details.
+          </p>
+          <Link to="/" className="btn-secondary mt-6 inline-block">
+            Back to home
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="card p-8">
       <div className="mb-6 text-center">
@@ -136,7 +167,7 @@ export default function Signup() {
         <Field label="Student ID (university roll number)">
           <TextInput required inputMode="numeric" value={studentId} onChange={(e) => setStudentId(e.target.value.replace(/\D/g, '').slice(0, 20))} placeholder="e.g. 2300123456" />
         </Field>
-        <Field label="Email" hint={settings.signup_domain_restriction ? 'A valid student email is mandatory. We send a verification code to this address.' : undefined}>
+        <Field label="Email" hint={settings.signup_domain_restriction ? (settings.signup_email_otp ? 'A valid student email is mandatory. We send a verification code to this address.' : 'A valid student email is mandatory.') : undefined}>
           <TextInput type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={settings.signup_domain_restriction ? 'you@kluniversity.in' : 'you@example.com'} />
         </Field>
 
@@ -152,7 +183,9 @@ export default function Signup() {
             <MailCheck size={15} className="shrink-0" /> No account is created.
           </p>
           <p className="mt-1 text-primary-700/80">
-            We only email a verification code to confirm your application. You'll create an account if you're selected as a CIIE member.
+            {settings.signup_email_otp
+              ? "We only email a verification code to confirm your application. You'll create an account if you're selected as a CIIE member."
+              : "Your application will be submitted directly. You'll create an account if you're selected as a CIIE member."}
           </p>
         </div>
 

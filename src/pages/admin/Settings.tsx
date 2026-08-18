@@ -17,6 +17,7 @@ export default function Settings() {
   const [form, setForm] = useState({
     allow_public_signup: true,
     signup_domain_restriction: true,
+    signup_email_otp: true,
     domains: 'kluniversity.in',
     interview_day_1: '',
     interview_day_2: '',
@@ -35,6 +36,7 @@ export default function Settings() {
     setForm({
       allow_public_signup: current.allow_public_signup,
       signup_domain_restriction: current.signup_domain_restriction,
+      signup_email_otp: current.signup_email_otp,
       domains: (current.signup_allowed_domains ?? []).join(', '),
       interview_day_1: current.interview_day_1 ? String(current.interview_day_1).slice(0, 10) : '',
       interview_day_2: current.interview_day_2 ? String(current.interview_day_2).slice(0, 10) : '',
@@ -59,6 +61,7 @@ export default function Settings() {
     const payload = {
       allow_public_signup: form.allow_public_signup,
       signup_domain_restriction: form.signup_domain_restriction,
+      signup_email_otp: form.signup_email_otp,
       signup_allowed_domains: form.domains
         .split(',')
         .map((d) => d.trim().replace(/^@/, '').toLowerCase())
@@ -121,6 +124,15 @@ export default function Settings() {
           />
           <p className="text-xs text-slate-400">
             When on, only email addresses from the domains below can register. When off, every domain is allowed.
+          </p>
+          <Toggle
+            checked={form.signup_email_otp}
+            onChange={(v) => setForm({ ...form, signup_email_otp: v })}
+            label="Require email OTP verification during registration"
+          />
+          <p className="text-xs text-slate-400">
+            When on, applicants must verify their email with a 6-digit code before their submission is accepted. When off,
+            the OTP step is skipped — submissions are accepted immediately without email verification.
           </p>
           <Field label="Allowed email domains" hint="Comma separated — e.g. kluniversity.in">
             <TextInput value={form.domains} onChange={(e) => setForm({ ...form, domains: e.target.value })} />

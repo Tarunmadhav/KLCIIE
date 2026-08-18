@@ -127,6 +127,7 @@ export interface PlatformSettings {
   contact_phone: string | null
   office_address: string | null
   signup_fields: CustomFieldDef[]
+  signup_email_otp: boolean
   amtps_mode: boolean
   updated_by: string | null
   updated_at?: string

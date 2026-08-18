@@ -150,6 +150,30 @@ export default function RoleRegister() {
     const validatedInfo = { token: res.token ?? '', role: res.role ?? info.role, label: res.label ?? info.label }
     setValidated(validatedInfo)
 
+    if (!settings.signup_email_otp) {
+      const meta: Record<string, string> = {
+        role: validatedInfo.role,
+        role_slug: slug ?? '',
+        registration_token: validatedInfo.token,
+        student_id: studentId.trim(),
+      }
+      for (const f of fields) {
+        meta[f.key] = (values[f.key] ?? '').trim()
+      }
+      const sign = await signUp(fullName.trim(), email.trim(), password, meta)
+      setBusy(false)
+      if (sign.error) {
+        setError(sign.error)
+        return
+      }
+      const { data: sessionData } = await supabase.auth.getSession()
+      if (sessionData.session) {
+        await refreshProfile()
+      }
+      navigate('/register/role/success', { state: { label: validatedInfo.label, email: email.trim() } })
+      return
+    }
+
     // Respect the resend cooldown / 10-hour lockout for this address.
     const throttle = (await supabase.rpc('email_send_status', { p_email: email.trim() })).data as EmailSendStatus | null
     if (throttle?.locked) {
@@ -317,8 +341,12 @@ export default function RoleRegister() {
           <h1 className="text-xl font-bold text-slate-900">Register as {info.label}</h1>
           <p className="mt-1 text-sm text-slate-500">
             {info.requires_keys
-              ? 'You need the registration key and the current one-time code (changes every minute) from the CIIE admin. We will then email a verification code to confirm your email.'
-              : 'Create your account. We will email a verification code to confirm your email. No registration key needed.'}
+              ? settings.signup_email_otp
+                ? 'You need the registration key and the current one-time code (changes every minute) from the CIIE admin. We will then email a verification code to confirm your email.'
+                : 'You need the registration key and the current one-time code (changes every minute) from the CIIE admin.'
+              : settings.signup_email_otp
+                ? 'Create your account. We will email a verification code to confirm your email. No registration key needed.'
+                : 'Create your account. No registration key or email verification needed.'}
           </p>
         </div>
 
@@ -386,7 +414,7 @@ export default function RoleRegister() {
           {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
           <Button type="submit" disabled={busy} className="w-full">
-            {busy ? <Spinner className="border-white/40 border-t-white" /> : <>Send verification code</>}
+            {busy ? <Spinner className="border-white/40 border-t-white" /> : settings.signup_email_otp ? <>Send verification code</> : <>Create my account</>}
           </Button>
         </form>
 
