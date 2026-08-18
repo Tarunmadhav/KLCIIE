@@ -20,6 +20,7 @@ import {
   Newspaper,
   Palette,
   RadioTower,
+  Rocket,
   ScrollText,
   Settings,
   Shield,
@@ -75,6 +76,7 @@ export default function AdminLayout() {
     {
       label: 'Operations',
       items: [
+        { to: '/admin/startups', label: 'Startups', icon: Rocket },
         { to: '/admin/attendance', label: 'Attendance', icon: Camera },
         { to: '/admin/attendance-records', label: 'Attendance Records', icon: ClipboardCheck },
         { to: '/admin/duties', label: 'Duties', icon: ClipboardList },

@@ -163,8 +163,17 @@ export default function MemberQrPage() {
     () => (qrInfo?.rounds ?? []).find((x) => x.round === activeRound) ?? (qrInfo?.rounds ?? [])[0],
     [qrInfo, activeRound],
   )
-  const shownIssuedAt = shownRound?.issued_at ? new Date(shownRound.issued_at).getTime() : null
-  const refreshIn = shownIssuedAt ? Math.max(0, Math.ceil((shownIssuedAt + QR_ROTATE_MS - nowMs) / 1000)) : 0
+  const shownCode = shownRound?.code ?? null
+
+  // The "refreshes in Ns" timer starts when the QR is opened (the code first
+  // appears on screen) and restarts whenever the server rotates in a new code —
+  // not from when the server issued the code.
+  const [qrShownAt, setQrShownAt] = useState<number | null>(null)
+  useEffect(() => {
+    if (shownCode) setQrShownAt(Date.now())
+  }, [shownCode])
+
+  const refreshIn = qrShownAt ? Math.max(0, Math.ceil((qrShownAt + QR_ROTATE_MS - nowMs) / 1000)) : 0
 
   // Auto-transition at the event's start and end times: the QR appears the
   // moment the event starts and closes once it ends — no manual refresh. The

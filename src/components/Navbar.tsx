@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { Camera, ChevronDown, ClipboardCheck, Home, Info, LayoutDashboard, LogOut, Mail, Menu, MessageSquareText, Shield, User, UserCheck, X, Zap } from 'lucide-react'
+import { Camera, ChevronDown, ClipboardCheck, Home, Info, LayoutDashboard, LogOut, Mail, Menu, MessageSquareText, Rocket, Shield, User, UserCheck, X, Zap } from 'lucide-react'
 import Logo from '@/components/Logo'
 import { useAuth } from '@/hooks/useAuth'
 import { useSettings } from '@/hooks/useSettings'
@@ -9,6 +9,7 @@ import { cn, initials } from '@/lib/utils'
 const navItems = [
   { to: '/', label: 'Home' },
   { to: '/events', label: 'Events' },
+  { to: '/startups', label: 'Our Startups' },
   { to: '/gallery', label: 'Gallery' },
   { to: '/members', label: 'Members' },
   { to: '/about', label: 'About' },
@@ -176,6 +177,7 @@ export default function Navbar() {
                 {item.to === '/' && <Home size={16} />}
                 {item.to === '/members' && <User size={16} />}
                 {item.to === '/events' && <Zap size={16} />}
+                {item.to === '/startups' && <Rocket size={16} />}
                 {item.to === '/gallery' && <Camera size={16} />}
                 {item.to === '/about' && <Info size={16} />}
                 {item.to === '/contact' && <Mail size={16} />}

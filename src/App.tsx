@@ -20,6 +20,7 @@ import MembersList from '@/pages/MembersList'
 import MemberPublic from '@/pages/MemberPublic'
 import AmtpsPage from '@/pages/AmtpsPage'
 import AmtpsMemberPage from '@/pages/AmtpsMemberPage'
+import StartupsPage from '@/pages/StartupsPage'
 import PostsList from '@/pages/PostsList'
 import PostDetail from '@/pages/PostDetail'
 import Login from '@/pages/Login'
@@ -83,6 +84,7 @@ import RecruitFormsAdmin from '@/pages/admin/recruit/RecruitForms'
 import RejectPermissionsAdmin from '@/pages/admin/recruit/RejectPermissions'
 import SmtpSettingsAdmin from '@/pages/admin/recruit/SmtpSettings'
 import SendMailAdmin from '@/pages/admin/SendMail'
+import StartupsAdmin from '@/pages/admin/StartupsAdmin'
 
 export default function App() {
   return (
@@ -109,6 +111,7 @@ export default function App() {
               <Route path="/posts" element={<PostsList />} />
               <Route path="/posts/:slug" element={<PostDetail />} />
               <Route path="/gallery" element={<Gallery />} />
+              <Route path="/startups" element={<StartupsPage />} />
 
               <Route element={<RequireAuth />}>
                 <Route path="/dashboard" element={<MemberLayout />}>
@@ -179,6 +182,7 @@ export default function App() {
                 <Route path="smtp" element={<RequireSuperAdmin><SmtpSettingsAdmin /></RequireSuperAdmin>} />
                 <Route path="send-mail" element={<RequireSuperAdmin><SendMailAdmin /></RequireSuperAdmin>} />
                 <Route path="audit-logs" element={<AuditLogsAdmin />} />
+                <Route path="startups" element={<StartupsAdmin />} />
                 <Route path="admins" element={<AdminsAdmin />} />
                 <Route path="user-roles" element={<RequireSuperAdmin><UserRolesAdmin /></RequireSuperAdmin>} />
               </Route>

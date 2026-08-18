@@ -59,6 +59,21 @@ export interface AmtpsMember {
   updated_at: string
 }
 
+/** A startup showcase card added by super admin / mail admin. */
+export interface Startup {
+  id: string
+  name: string
+  website_url: string | null
+  logo_url: string | null
+  banner_url: string | null
+  contact_email: string | null
+  location: string | null
+  social_links: Record<string, string>
+  display_order: number
+  created_at: string
+  updated_at: string
+}
+
 /** A registration form field definition (admin-editable, all mandatory). */
 export interface CustomFieldDef {
   key: string
