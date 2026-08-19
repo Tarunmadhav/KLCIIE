@@ -89,6 +89,18 @@ export default function AdminLayout() {
         { to: '/admin/forms-submitted', label: 'Forms Submitted', icon: ListChecks },
       ],
     },
+    ...(isSuperAdmin
+      ? [
+          {
+            label: 'Admin Controls',
+            items: [
+              { to: '/admin/events', label: 'Register Users', icon: UserPlus },
+              { to: '/admin/attendance-records', label: 'Manual Attendance', icon: ClipboardCheck },
+              { to: '/admin/members', label: 'All Users', icon: Users },
+            ],
+          },
+        ]
+      : []),
     {
       label: 'System',
       items: [

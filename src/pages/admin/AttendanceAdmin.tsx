@@ -61,6 +61,8 @@ export default function AttendanceAdmin() {
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState<Record<string, boolean>>({})
   const [lists, setLists] = useState<Record<string, LoadedList>>({})
+  const [roundByEvent, setRoundByEvent] = useState<Record<string, number>>({})
+  const [busy, setBusy] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
@@ -93,32 +95,36 @@ export default function AttendanceAdmin() {
     return { regs: (regData ?? []) as unknown as Attendee[], att }
   }
 
+  const refreshList = async (eventId: string) => {
+    const { regs, att } = await loadEventData(eventId)
+    const attMap = new Map<string, Array<{ round: number; status: string; method: string; marked_at: string; marked_by?: { full_name?: string | null; ciie_id?: string | null } | null }>>()
+    for (const a of att) {
+      if (!a.registration_id) continue
+      if (!attMap.has(a.registration_id)) attMap.set(a.registration_id, [])
+      attMap.get(a.registration_id)!.push({ round: a.round, status: a.status, method: a.method, marked_at: a.marked_at, marked_by: a.marked_by })
+    }
+    setLists((current) => ({ ...current, [eventId]: { rows: regs.map((r) => ({ ...r, attendance: attMap.get(r.id) ?? [] })) } }))
+  }
+
   const toggle = async (eventId: string) => {
     const next = { ...open, [eventId]: !open[eventId] }
     setOpen(next)
     if (next[eventId] && !lists[eventId]) {
-      const { regs, att } = await loadEventData(eventId)
-      const attMap = new Map<
-        string,
-        Array<{ round: number; status: string; method: string; marked_at: string; marked_by?: { full_name?: string | null; ciie_id?: string | null } | null }>
-      >()
-      for (const a of att) {
-        if (!a.registration_id) continue
-        if (!attMap.has(a.registration_id)) attMap.set(a.registration_id, [])
-        attMap.get(a.registration_id)!.push({
-          round: a.round,
-          status: a.status,
-          method: a.method,
-          marked_at: a.marked_at,
-          marked_by: a.marked_by,
-        })
-      }
-      const merged = regs.map((r) => ({
-        ...r,
-        attendance: attMap.get(r.id) ?? [],
-      }))
-      setLists({ ...lists, [eventId]: { rows: merged } })
+      await refreshList(eventId)
     }
+  }
+
+  const markAttendance = async (eventId: string, registrationId: string, status: 'present' | 'absent') => {
+    const round = roundByEvent[eventId] ?? 1
+    setBusy(`${registrationId}-${round}`)
+    const { error } = await supabase.rpc('admin_set_attendance', {
+      p_event_id: eventId,
+      p_registration_id: registrationId,
+      p_round: round,
+      p_status: status,
+    })
+    setBusy(null)
+    if (!error) await refreshList(eventId)
   }
 
   const downloadExcel = async (e: EventStat) => {
@@ -239,12 +245,24 @@ export default function AttendanceAdmin() {
                   </button>
                   <button className="btn-secondary" onClick={() => toggle(e.event_id)}>
                     {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                    {isOpen ? 'Hide' : 'Attendees'}
+                    {isOpen ? 'Hide' : 'Manage attendance'}
                   </button>
                 </div>
 
                 {isOpen && (
                   <div className="mt-3 max-h-72 overflow-auto">
+                    {e.attendance_rounds > 1 && (
+                      <label className="mb-2 flex items-center gap-2 text-xs font-semibold text-slate-500">
+                        Round
+                        <select
+                          className="input !w-auto !py-1 text-xs"
+                          value={roundByEvent[e.event_id] ?? 1}
+                          onChange={(event) => setRoundByEvent((current) => ({ ...current, [e.event_id]: Number(event.target.value) }))}
+                        >
+                          {Array.from({ length: e.attendance_rounds }, (_, i) => i + 1).map((round) => <option key={round} value={round}>{round}</option>)}
+                        </select>
+                      </label>
+                    )}
                     {!list ? (
                       <PageLoader />
                     ) : list.error ? (
@@ -288,7 +306,25 @@ export default function AttendanceAdmin() {
                                   })}
                                 </div>
                               </div>
-                              <Badge tone={finalPresent ? 'green' : 'slate'}>{finalPresent ? 'Present' : 'Absent'}</Badge>
+                              <div className="flex shrink-0 flex-col items-end gap-1">
+                                <Badge tone={finalPresent ? 'green' : 'slate'}>{finalPresent ? 'Present' : 'Absent'}</Badge>
+                                <div className="flex gap-1">
+                                  <button
+                                    className="rounded bg-green-50 px-2 py-1 text-[10px] font-bold text-green-700 hover:bg-green-100 disabled:opacity-50"
+                                    disabled={busy === `${r.id}-${roundByEvent[e.event_id] ?? 1}`}
+                                    onClick={() => void markAttendance(e.event_id, r.id, 'present')}
+                                  >
+                                    Present
+                                  </button>
+                                  <button
+                                    className="rounded bg-red-50 px-2 py-1 text-[10px] font-bold text-red-700 hover:bg-red-100 disabled:opacity-50"
+                                    disabled={busy === `${r.id}-${roundByEvent[e.event_id] ?? 1}`}
+                                    onClick={() => void markAttendance(e.event_id, r.id, 'absent')}
+                                  >
+                                    Absent
+                                  </button>
+                                </div>
+                              </div>
                             </li>
                           )
                         })}

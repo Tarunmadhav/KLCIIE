@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { CalendarDays, MapPin, Pencil, Trash2, Users, Video } from 'lucide-react'
-import { Badge, Button, EmptyState, Modal, PageLoader } from '@/components/ui'
+import { CalendarDays, MapPin, Pencil, Trash2, UserPlus, Users, Video } from 'lucide-react'
+import { Badge, Button, EmptyState, Field, Modal, PageLoader, SelectInput } from '@/components/ui'
+import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
-import type { Attendance, Event, EventRegistration } from '@/lib/types'
+import type { Attendance, Event, EventRegistration, Profile } from '@/lib/types'
 import { errorMessage, formatDate } from '@/lib/utils'
 
 interface EventStats {
@@ -22,6 +23,7 @@ function roundsOf(event: Event): number[] {
 }
 
 export default function EventDetailAdmin() {
+  const { isSuperAdmin } = useAuth()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [event, setEvent] = useState<Event | null>(null)
@@ -31,13 +33,16 @@ export default function EventDetailAdmin() {
   const [selectedRound, setSelectedRound] = useState(1)
   const [confirming, setConfirming] = useState<string | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [registrationOpen, setRegistrationOpen] = useState(false)
+  const [selectedUserId, setSelectedUserId] = useState('')
+  const [users, setUsers] = useState<Profile[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
 
   const load = async () => {
     if (!id) return
-    const [{ data: ev }, { data: statsData }, { data: regData }] = await Promise.all([
+    const [{ data: ev }, { data: statsData }, { data: regData }, { data: userData }] = await Promise.all([
       supabase.from('events').select('*').eq('id', id).maybeSingle(),
       supabase.rpc('admin_get_event_stats'),
       supabase
@@ -45,18 +50,40 @@ export default function EventDetailAdmin() {
         .select('*, attendance:attendance(*)')
         .eq('event_id', id)
         .order('created_at', { ascending: false }),
+      isSuperAdmin
+        ? supabase.from('profiles').select('*').neq('status', 'disabled').order('full_name')
+        : Promise.resolve({ data: null }),
     ])
     setEvent((ev ?? null) as Event | null)
     const s = ((statsData ?? []) as Array<{ event_id: string } & EventStats>).find((r) => r.event_id === id)
     setStats(s ?? null)
     setRegs((regData ?? []) as unknown as RegRow[])
+    setUsers((userData ?? []) as Profile[])
     setLoading(false)
   }
 
   useEffect(() => {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id])
+  }, [id, isSuperAdmin])
+
+  const registerUser = async () => {
+    if (!event || !selectedUserId) return
+    setBusy(true)
+    setError('')
+    const { error } = await supabase.rpc('admin_register_event_user', {
+      p_event_id: event.id,
+      p_member_id: selectedUserId,
+    })
+    setBusy(false)
+    if (error) {
+      setError(errorMessage(error))
+      return
+    }
+    setRegistrationOpen(false)
+    setSelectedUserId('')
+    await load()
+  }
 
   const cancelReg = async (reg: RegRow) => {
     setConfirming(reg.id)
@@ -86,17 +113,12 @@ export default function EventDetailAdmin() {
 
   const markAttendance = async (reg: RegRow, status: 'present' | 'absent') => {
     setBusy(true)
-    const { error } = await supabase.from('attendance').upsert(
-      {
-        event_id: event!.id,
-        registration_id: reg.id,
-        member_id: reg.member_id,
-        round: selectedRound,
-        status,
-        method: 'manual',
-      },
-      { onConflict: 'registration_id,round' },
-    )
+    const { error } = await supabase.rpc('admin_set_attendance', {
+      p_event_id: event!.id,
+      p_registration_id: reg.id,
+      p_round: selectedRound,
+      p_status: status,
+    })
     setBusy(false)
     if (error) {
       setError(errorMessage(error))
@@ -168,6 +190,11 @@ export default function EventDetailAdmin() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
+          {isSuperAdmin && (
+            <Button variant="secondary" onClick={() => setRegistrationOpen(true)}>
+              <UserPlus size={14} /> Register user
+            </Button>
+          )}
           <Link to={`/admin/attendance/${event.id}`} className="btn-secondary">
             Open scanner
           </Link>
@@ -400,6 +427,34 @@ export default function EventDetailAdmin() {
           )}
         </div>
       )}
+
+      <Modal
+        open={registrationOpen}
+        onClose={() => setRegistrationOpen(false)}
+        title="Register user for this event"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setRegistrationOpen(false)}>Cancel</Button>
+            <Button disabled={busy || !selectedUserId} onClick={registerUser}>Register</Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600">
+            This top-admin action can register a user even when the public registration deadline has passed. The event seat limit and duplicate-registration checks still apply.
+          </p>
+          <Field label="User">
+            <SelectInput value={selectedUserId} onChange={(e) => setSelectedUserId(e.target.value)}>
+              <option value="">Select a user</option>
+              {users.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.full_name || user.email || user.id}{user.email ? ` — ${user.email}` : ''}
+                </option>
+              ))}
+            </SelectInput>
+          </Field>
+        </div>
+      </Modal>
 
       <Modal
         open={deleteOpen}

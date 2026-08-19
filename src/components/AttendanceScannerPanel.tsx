@@ -256,6 +256,25 @@ export default function AttendanceScannerPanel({ eventId }: AttendanceScannerPan
       p_round: round,
     })
     if (error) {
+      if (memberCode && /event closed/i.test(errorMessage(error))) {
+        const { data: adminData, error: adminError } = await supabase.rpc('admin_mark_attendance_code', {
+          p_event_id: eventId,
+          p_member_code: memberCode,
+          p_round: round,
+        })
+        if (!adminError) {
+          const adminResult = (adminData ?? {}) as { duplicate?: boolean; member_id?: string; round?: number }
+          return {
+            ok: true,
+            duplicate: adminResult.duplicate,
+            message: adminResult.duplicate
+              ? 'Attendance was already recorded for this round.'
+              : `Attendance recorded for Round ${adminResult.round ?? round}.`,
+            memberId: adminResult.member_id,
+            round: adminResult.round ?? round,
+          }
+        }
+      }
       const code = (error as { code?: string }).code
       if (code === 'EVTMIS' || /event mismatch/i.test(errorMessage(error))) {
         return { ok: false, message: 'No student registered for this event' }

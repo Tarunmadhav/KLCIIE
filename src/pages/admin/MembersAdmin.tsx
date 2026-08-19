@@ -8,8 +8,7 @@ import { supabase } from '@/lib/supabase'
 import { ROLE_LABELS, isAdminRole } from '@/lib/types'
 
 export default function MembersAdmin() {
-  const { isSuperAdmin, profile } = useAuth()
-  const isMailAdmin = profile?.role === 'mail_admin'
+  const { isSuperAdmin } = useAuth()
   const [rows, setRows] = useState<MemberRow[]>([])
   const [q, setQ] = useState('')
   const [roleFilter, setRoleFilter] = useState('all')
@@ -40,10 +39,7 @@ export default function MembersAdmin() {
     }
   }, [])
 
-  const visibleRows = useMemo(() => {
-    if (!isMailAdmin) return rows
-    return rows.filter((r) => r.role !== 'super_admin' && r.role !== 'main_admin')
-  }, [rows, isMailAdmin])
+  const visibleRows = useMemo(() => rows, [rows])
 
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase()
@@ -66,7 +62,7 @@ export default function MembersAdmin() {
     <div>
       <PageHeader
         title="Members"
-        subtitle={`${visibleRows.length} members`}
+        subtitle={`${visibleRows.length} users`}
         actions={
           isSuperAdmin ? (
             <Button onClick={() => setShowAdd(true)}>
@@ -116,7 +112,7 @@ export default function MembersAdmin() {
       </div>
 
       {filtered.length === 0 ? (
-        <EmptyState icon={<Users size={40} />} title="No listed members yet" subtitle="Use “Add member” to add people to the CIIE directory." />
+        <EmptyState icon={<Users size={40} />} title="No users found" subtitle="Users will appear here once they have an account." />
       ) : (
         <MembersTable rows={filtered} />
       )}
