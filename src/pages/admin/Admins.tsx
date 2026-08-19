@@ -3,7 +3,7 @@ import { Shield, ShieldAlert, UserPlus, UserX } from 'lucide-react'
 import { Avatar, Badge, Button, EmptyState, Field, PageHeader, PageLoader, SelectInput } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
-import { ADMIN_ROLES, ROLE_LABELS, type Profile } from '@/lib/types'
+import { ADMIN_ROLES, ROLE_LABELS, isSuperAdminRole, type Profile } from '@/lib/types'
 import { errorMessage, formatDate } from '@/lib/utils'
 
 type AdminRow = Profile
@@ -109,7 +109,7 @@ export default function Admins() {
     setError('')
     const { error } = await supabase
       .from('profiles')
-      .update({ role, status: 'active', mfa_setup_required: true })
+      .update({ role, status: 'active', mfa_setup_required: isSuperAdminRole(role) })
       .eq('id', targetId)
     setBusy(false)
     if (error) {
@@ -180,7 +180,7 @@ export default function Admins() {
             onSubmit={(e, role) => promote('member', e, role)}
             footer={
               <>
-                Promoted admins are flagged <code>mfa_setup_required</code> — they must complete MFA on their next login.
+                Promoted admins are flagged <code>mfa_setup_required</code> — super admin / main admin roles must complete MFA on their next login.
               </>
             }
           />
@@ -195,7 +195,7 @@ export default function Admins() {
             onSubmit={(e, role) => promote('user', e, role)}
             footer={
               <>
-                Promotes a basic account (role <code>user</code>) directly to an admin role. MFA will be required on their next login.
+                Promotes a basic account (role <code>user</code>) directly to an admin role. MFA will be required for super admin / main admin on their next login.
               </>
             }
           />

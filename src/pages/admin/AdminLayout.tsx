@@ -42,6 +42,7 @@ export default function AdminLayout() {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const isMailAdmin = profile?.role === 'mail_admin'
+  const isOnlySuperAdmin = profile?.role === 'super_admin'
 
   const navGroups = [
     {
@@ -61,8 +62,8 @@ export default function AdminLayout() {
         ...(isSuperAdmin ? [{ to: '/admin/members/add', label: 'Add Member', icon: UserPlus }] : []),
         ...(isSuperAdmin ? [{ to: '/admin/amtps', label: 'AMTPS', icon: ContactRound }] : []),
         { to: '/admin/recruits', label: 'Recruits', icon: UserCheck },
-        ...(!isMailAdmin ? [{ to: '/admin/admins', label: 'Admins & MFA', icon: Shield }] : []),
-        ...(isSuperAdmin ? [{ to: '/admin/user-roles', label: 'User Roles', icon: UserCog }] : []),
+        ...(isOnlySuperAdmin ? [{ to: '/admin/admins', label: 'Admins & MFA', icon: Shield }] : []),
+        ...(isOnlySuperAdmin ? [{ to: '/admin/user-roles', label: 'User Roles', icon: UserCog }] : []),
       ],
     },
     {

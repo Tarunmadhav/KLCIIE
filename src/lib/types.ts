@@ -490,3 +490,9 @@ export const ROLE_LABELS: Record<Role, string> = {
 export function isAdminRole(role: string | null | undefined): role is AdminRole {
   return !!role && (ADMIN_ROLES as string[]).includes(role)
 }
+
+export const SUPER_ADMIN_ROLES: AdminRole[] = ['super_admin', 'main_admin']
+
+export function isSuperAdminRole(role: string | null | undefined): boolean {
+  return !!role && (SUPER_ADMIN_ROLES as string[]).includes(role)
+}

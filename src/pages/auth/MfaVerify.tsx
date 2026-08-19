@@ -14,7 +14,7 @@ export default function MfaVerify() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
-  if (!user || !profile || !isAdmin) return <Navigate to="/login" replace />
+  if (!user || !profile || !isAdmin || profile.role !== 'super_admin') return <Navigate to="/login" replace />
   if (mfa && mfa.aal === 'aal2' && adminMfaVerified) return <Navigate to="/admin" replace />
   if (mfa && !mfa.hasVerifiedFactor) return <Navigate to="/auth/mfa-setup" replace />
 

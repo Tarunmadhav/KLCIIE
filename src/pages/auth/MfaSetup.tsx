@@ -24,28 +24,45 @@ export default function MfaSetup() {
 
   // Already fully set up? Get out of here.
   useEffect(() => {
-    if (mfa && mfa.aal === 'aal2' && profile && !profile.mfa_setup_required) {
+    if (mfa && mfa.hasVerifiedFactor && profile && profile.mfa_setup_required) {
+      supabase.from('profiles').update({ mfa_enabled: true, mfa_setup_required: false }).eq('id', user!.id).then(() => {
+        refreshProfile()
+        markAdminMfaVerified()
+        navigate('/admin', { replace: true })
+      })
+      return
+    }
+    if (mfa && mfa.aal === 'aal2' && profile && !profile.mfa_setup_required && profile.role === 'super_admin') {
       navigate('/admin', { replace: true })
     }
   }, [mfa, profile, navigate])
 
   if (!user) return <Navigate to="/login" replace />
-  if (isAdmin === false && profile) return <Navigate to="/dashboard" replace />
+  if (!isAdmin || profile?.role !== 'super_admin') return <Navigate to="/dashboard" replace />
 
   const beginEnroll = async () => {
     setBusy(true)
     setError('')
-    const { data, error: err } = await supabase.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'CIIE Authenticator' })
-    setBusy(false)
-    if (err || !data) {
-      setError(errorMessage(err))
-      return
+    try {
+      const { data: existing } = await supabase.auth.mfa.listFactors()
+      for (const f of existing?.totp ?? []) {
+        await supabase.auth.mfa.unenroll({ factorId: f.id })
+      }
+      const { data, error: err } = await supabase.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'CIIE Authenticator' })
+      if (err || !data) {
+        setError(errorMessage(err))
+        setBusy(false)
+        return
+      }
+      setFactorId(data.id)
+      setQrData(data.totp.qr_code)
+      const secretMatch = data.totp.uri.match(/secret=([A-Za-z0-9]+)/)
+      setSecret(data.totp.secret || (secretMatch ? secretMatch[1] : ''))
+      setStep('enroll')
+    } catch (e) {
+      setError(errorMessage(e))
     }
-    setFactorId(data.id)
-    setQrData(data.totp.qr_code)
-    const secretMatch = data.totp.uri.match(/secret=([A-Za-z0-9]+)/)
-    setSecret(data.totp.secret || (secretMatch ? secretMatch[1] : ''))
-    setStep('enroll')
+    setBusy(false)
   }
 
   const verify = async (e: FormEvent) => {
@@ -149,6 +166,7 @@ export default function MfaSetup() {
               <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
                 Works with Google Authenticator, Authy, Microsoft Authenticator and other TOTP apps.
               </p>
+              {error && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
               <Button className="mt-5 w-full" onClick={beginEnroll} disabled={busy}>
                 {busy ? <Spinner className="border-white/40 border-t-white" /> : <>Begin MFA setup <KeyRound size={16} /></>}
               </Button>

@@ -196,15 +196,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const prof = await loadProfile()
       const mfaState = await refreshMfaState()
       const admin = !!prof && isAdminRole(prof.role)
+      const superAdmin = prof?.role === 'super_admin'
 
       if (!admin) {
         return { ...base, allowed: true, isAdmin: admin }
       }
-      if (prof!.mfa_setup_required || !mfaState.hasVerifiedFactor) {
-        return { ...base, mfaSetupRequired: true, isAdmin: true }
-      }
-      if (mfaState.aal !== 'aal2') {
-        return { ...base, mfaVerifyRequired: true, isAdmin: true }
+      if (superAdmin) {
+        if (prof!.mfa_setup_required || !mfaState.hasVerifiedFactor) {
+          return { ...base, mfaSetupRequired: true, isAdmin: true }
+        }
+        if (mfaState.aal !== 'aal2') {
+          return { ...base, mfaVerifyRequired: true, isAdmin: true }
+        }
       }
       return { ...base, allowed: true, isAdmin: true }
     },
