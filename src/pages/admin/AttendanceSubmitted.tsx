@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { ClipboardCheck, Download, FileSpreadsheet, ScanLine, Search, Ticket } from 'lucide-react'
 import { Badge, EmptyState, Modal, PageHeader, PageLoader, TextInput } from '@/components/ui'
+import { useAuth } from '@/hooks/useAuth'
 import { downloadExcel } from '@/lib/excel'
 import { supabase } from '@/lib/supabase'
 import { cn, formatDate, formatDateTime } from '@/lib/utils'
@@ -86,6 +87,8 @@ function DetailList({ items }: { items: DetailItem[] }) {
 }
 
 export default function AttendanceSubmitted() {
+  const { profile } = useAuth()
+  const isSuperAdmin = profile?.role === 'super_admin'
   const [eventOptions, setEventOptions] = useState<EventOption[]>([])
   const [selectedEventId, setSelectedEventId] = useState('')
   const [rows, setRows] = useState<AttendeeView[]>([])
@@ -94,6 +97,9 @@ export default function AttendanceSubmitted() {
   const [rowsLoading, setRowsLoading] = useState(false)
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<AttendeeView | null>(null)
+  const [exportOpen, setExportOpen] = useState(false)
+  const [exportRowFilter, setExportRowFilter] = useState<'all' | 'present' | 'absent'>('all')
+  const [exportColumns, setExportColumns] = useState<string[]>(['registration', 'identity', 'contact', 'academic', 'attendance', 'form'])
 
   useEffect(() => {
     let active = true
@@ -180,45 +186,60 @@ export default function AttendanceSubmitted() {
   const presentCount = rows.filter((r) => finalPresent(r)).length
   const absentCount = rows.length - presentCount
 
-  const buildRow = (r: AttendeeView, i: number): Record<string, unknown> => {
-    const row: Record<string, unknown> = {
-      'S.No': i + 1,
-      'Registration code': r.registration_code,
-      Name: r.attendee_name,
-      'Student ID': r.student_id ?? '',
-      Email: r.email ?? '',
-      Phone: r.phone ?? '',
-      Department: r.department ?? '',
-      'Year of study': r.year_of_study ?? '',
-      College: r.college ?? '',
-      'Registration status': r.status,
+  const buildRow = (r: AttendeeView, i: number, columns = exportColumns): Record<string, unknown> => {
+    const row: Record<string, unknown> = { 'S.No': i + 1 }
+    if (columns.includes('registration')) {
+      row['Registration code'] = r.registration_code
+      row['Registration status'] = r.status
     }
-    for (const n of rounds) {
-      const att = roundAtt(r, n)
-      const present = !!att
-      row[`Round ${n} Status`] = present ? 'Present' : 'Absent'
-      row[`Round ${n} Method`] = present ? att?.method ?? '' : ''
-      row[`Round ${n} Scanned by Student Name`] = present ? att?.marked_by?.full_name ?? '' : ''
-      row[`Round ${n} Scanned by CIIE ID`] = present ? att?.marked_by?.ciie_id ?? '' : ''
-      row[`Round ${n} Scanned by Student ID`] = present ? att?.marked_by?.student_id ?? '' : ''
-      row[`Round ${n} Marked at`] = present ? formatDateTime(att?.marked_at) : ''
+    if (columns.includes('identity')) {
+      row.Name = r.attendee_name
+      row['Student ID'] = r.student_id ?? ''
     }
-    row['Final Attendance'] = finalPresent(r) ? 'Present' : 'Absent'
-    row['No. of Present Rounds'] = presentRounds(r)
-    row['No. of Absent Rounds'] = roundsCount - presentRounds(r)
-    for (const key of formKeys) {
-      row[labelize(key)] = r.form_data?.[key] ?? ''
+    if (columns.includes('contact')) {
+      row.Email = r.email ?? ''
+      row.Phone = r.phone ?? ''
     }
+    if (columns.includes('academic')) {
+      row.Department = r.department ?? ''
+      row['Year of study'] = r.year_of_study ?? ''
+      row.College = r.college ?? ''
+    }
+    if (columns.includes('attendance')) {
+      for (const n of rounds) {
+        const att = roundAtt(r, n)
+        const present = !!att
+        row[`Round ${n} Status`] = present ? 'Present' : 'Absent'
+        row[`Round ${n} Method`] = present ? att?.method ?? '' : ''
+        row[`Round ${n} Scanned by`] = present ? att?.marked_by?.full_name ?? '' : ''
+        row[`Round ${n} Marked at`] = present ? formatDateTime(att?.marked_at) : ''
+      }
+      row['Final Attendance'] = finalPresent(r) ? 'Present' : 'Absent'
+      row['No. of Present Rounds'] = presentRounds(r)
+      row['No. of Absent Rounds'] = roundsCount - presentRounds(r)
+    }
+    if (columns.includes('form')) for (const key of formKeys) row[labelize(key)] = r.form_data?.[key] ?? ''
     return row
   }
 
   const exportExcel = () => {
     if (!selectedEventId) return
+    if (isSuperAdmin) {
+      setExportOpen(true)
+      return
+    }
+    performExport()
+  }
+
+  const performExport = () => {
+    if (!selectedEventId) return
+    const exportRows = filteredRows.filter((r) => exportRowFilter === 'all' || (exportRowFilter === 'present' ? finalPresent(r) : !finalPresent(r)))
     downloadExcel(
       `attendance-${(event?.title ?? 'event').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-${new Date().toISOString().slice(0, 10)}.xlsx`,
-      filteredRows.map((r, i) => buildRow(r, i)),
+      exportRows.map((r, i) => buildRow(r, i)),
       'Attendance',
     )
+    setExportOpen(false)
   }
 
   const detailItems = (r: AttendeeView): DetailItem[] => {
@@ -435,13 +456,27 @@ export default function AttendanceSubmitted() {
       )}
 
       <Modal
+        open={exportOpen}
+        onClose={() => setExportOpen(false)}
+        title="Choose Excel export fields"
+        footer={<><button className="btn-secondary" onClick={() => setExportOpen(false)}>Cancel</button><button className="btn-primary" onClick={performExport}>Download Excel</button></>}
+      >
+        <div className="space-y-5 text-sm">
+          <label className="block"><span className="label">Rows</span><select className="input" value={exportRowFilter} onChange={(e) => setExportRowFilter(e.target.value as typeof exportRowFilter)}><option value="all">All registered rows</option><option value="present">Present rows only</option><option value="absent">Absent rows only</option></select></label>
+          <div><p className="label">Columns</p><div className="grid gap-2 sm:grid-cols-2">{[
+            ['registration', 'Registration'], ['identity', 'Name and student ID'], ['contact', 'Email and phone'], ['academic', 'Department, year and college'], ['attendance', 'Attendance rounds'], ['form', 'Submitted form fields'],
+          ].map(([key, label]) => <label key={key} className="flex items-center gap-2"><input type="checkbox" checked={exportColumns.includes(key)} onChange={(e) => setExportColumns((current) => e.target.checked ? [...current, key] : current.filter((x) => x !== key))} />{label}</label>)}</div></div>
+        </div>
+      </Modal>
+
+      <Modal
         open={!!selected}
         onClose={() => setSelected(null)}
         title={`Attendance — ${selected?.attendee_name ?? ''}`}
         wide
         footer={
           selected ? (
-            <button className="btn-primary" onClick={() => downloadExcel(`attendance-${selected.registration_code}.xlsx`, [buildRow(selected, 1)], 'Attendance')}>
+            <button className="btn-primary" onClick={() => downloadExcel(`attendance-${selected.registration_code}.xlsx`, [buildRow(selected, 1)], 'Attendance', { superAdmin: profile?.role === 'super_admin' })}>
               <Download size={15} /> Download as Excel
             </button>
           ) : undefined

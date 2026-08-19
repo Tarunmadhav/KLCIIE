@@ -5,8 +5,16 @@ import { downloadExcel } from '@/lib/excel'
 import { supabase } from '@/lib/supabase'
 import { ROLE_LABELS, type Profile, type Role } from '@/lib/types'
 import { cn, formatDate, formatDateTime } from '@/lib/utils'
+import { useAuth } from '@/hooks/useAuth'
 
 type Tab = 'accounts' | 'events'
+type ExportRowFilter = 'ALL' | 'PRESENT' | 'ABSENT'
+
+interface ExportRequest {
+  filename: string
+  rows: Array<Record<string, unknown>>
+  sheetName: string
+}
 
 interface EventRegRow {
   id: string
@@ -64,7 +72,80 @@ function DetailList({ items }: { items: DetailItem[] }) {
   )
 }
 
+function SuperAdminExportDialog({ request, onClose }: { request: ExportRequest | null; onClose: () => void }) {
+  const [selectedKeys, setSelectedKeys] = useState<string[]>([])
+  const [rowFilter, setRowFilter] = useState<ExportRowFilter>('ALL')
+  const keys = useMemo(() => (request ? Array.from(new Set(request.rows.flatMap((row) => Object.keys(row)))) : []), [request])
+
+  useEffect(() => {
+    setSelectedKeys(keys)
+    setRowFilter('ALL')
+  }, [keys])
+
+  const toggleKey = (key: string) => {
+    setSelectedKeys((current) => (current.includes(key) ? current.filter((item) => item !== key) : [...current, key]))
+  }
+
+  const exportSelected = () => {
+    if (!request || selectedKeys.length === 0) return
+    const rows = request.rows
+      .filter((row) => {
+        if (rowFilter === 'ALL') return true
+        const status = String(row['Final Attendance'] ?? row.Status ?? row.status ?? '').toUpperCase()
+        return rowFilter === 'PRESENT' ? status.includes('PRESENT') : status.includes('ABSENT')
+      })
+      .map((row) => Object.fromEntries(selectedKeys.map((key) => [key, row[key] ?? ''])))
+    void downloadExcel(request.filename, rows, request.sheetName)
+    onClose()
+  }
+
+  return (
+    <Modal open={!!request} onClose={onClose} title="Choose Excel export details" wide footer={
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-xs text-slate-500">{selectedKeys.length} of {keys.length} columns selected</span>
+        <button className="btn-primary" onClick={exportSelected} disabled={selectedKeys.length === 0}>Download Excel</button>
+      </div>
+    }>
+      <div className="space-y-5">
+        <div>
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="font-semibold text-slate-900">Columns</p>
+              <p className="text-xs text-slate-500">Select the fields you want in the spreadsheet.</p>
+            </div>
+            <div className="flex gap-2">
+              <button className="btn-secondary !px-3 !py-1.5 text-xs" onClick={() => setSelectedKeys(keys)}>Select all</button>
+              <button className="btn-secondary !px-3 !py-1.5 text-xs" onClick={() => setSelectedKeys([])}>Clear all</button>
+            </div>
+          </div>
+          <div className="grid max-h-64 gap-2 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3 sm:grid-cols-2">
+            {keys.map((key) => (
+              <label key={key} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-700 hover:bg-white">
+                <input type="checkbox" checked={selectedKeys.includes(key)} onChange={() => toggleKey(key)} className="h-4 w-4 rounded border-slate-300 text-primary-600" />
+                <span>{key}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+        <div>
+          <p className="font-semibold text-slate-900">Rows</p>
+          <p className="mb-2 text-xs text-slate-500">Choose which records should be downloaded.</p>
+          <div className="flex flex-wrap gap-2">
+            {(['ALL', 'PRESENT', 'ABSENT'] as ExportRowFilter[]).map((filter) => (
+              <label key={filter} className={cn('flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium', rowFilter === filter ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-slate-200 text-slate-600')}>
+                <input type="radio" name="forms-export-row-filter" checked={rowFilter === filter} onChange={() => setRowFilter(filter)} className="h-4 w-4 text-primary-600" />
+                {filter === 'ALL' ? 'All rows' : filter === 'PRESENT' ? 'Present rows' : 'Absent rows'}
+              </label>
+            ))}
+          </div>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
 export default function FormsSubmitted() {
+  const { profile } = useAuth()
   const [tab, setTab] = useState<Tab>('accounts')
   const [accounts, setAccounts] = useState<Profile[]>([])
   const [events, setEvents] = useState<EventRegRow[]>([])
@@ -74,6 +155,7 @@ export default function FormsSubmitted() {
   const [query, setQuery] = useState('')
   const [selectedAccount, setSelectedAccount] = useState<Profile | null>(null)
   const [selectedEvent, setSelectedEvent] = useState<EventRegRow | null>(null)
+  const [exportRequest, setExportRequest] = useState<ExportRequest | null>(null)
 
   useEffect(() => {
     let active = true
@@ -174,27 +256,35 @@ export default function FormsSubmitted() {
 
   const exportAll = () => {
     if (tab === 'accounts') {
-      downloadExcel(
-        `forms-submitted-accounts-${new Date().toISOString().slice(0, 10)}.xlsx`,
-        filteredAccounts.map((a, i) => buildAccountRow(a, i)),
-        'Account registrations',
-      )
+      const request = {
+        filename: `forms-submitted-accounts-${new Date().toISOString().slice(0, 10)}.xlsx`,
+        rows: filteredAccounts.map((a, i) => buildAccountRow(a, i)),
+        sheetName: 'Account registrations',
+      }
+      if (profile?.role === 'super_admin') setExportRequest(request)
+      else void downloadExcel(request.filename, request.rows, request.sheetName)
     } else {
       const sel = eventOptions.find((e) => e.id === selectedEventId)
       const base = sel ? `form-${sel.title.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}` : 'forms-submitted-events'
-      downloadExcel(
-        `${base}-${new Date().toISOString().slice(0, 10)}.xlsx`,
-        filteredEvents.map((r, i) => buildEventRow(r, i)),
-        'Event registrations',
-      )
+      const request = {
+        filename: `${base}-${new Date().toISOString().slice(0, 10)}.xlsx`,
+        rows: filteredEvents.map((r, i) => buildEventRow(r, i)),
+        sheetName: 'Event registrations',
+      }
+      if (profile?.role === 'super_admin') setExportRequest(request)
+      else void downloadExcel(request.filename, request.rows, request.sheetName)
     }
   }
 
   const exportOne = (kind: Tab, item: Profile | EventRegRow) => {
     if (kind === 'accounts') {
-      downloadExcel(`form-${(item as Profile).full_name ?? 'submission'}.xlsx`, [buildAccountRow(item as Profile, 1)], 'Submission')
+      const request = { filename: `form-${(item as Profile).full_name ?? 'submission'}.xlsx`, rows: [buildAccountRow(item as Profile, 1)], sheetName: 'Submission' }
+      if (profile?.role === 'super_admin') setExportRequest(request)
+      else void downloadExcel(request.filename, request.rows, request.sheetName)
     } else {
-      downloadExcel(`form-${(item as EventRegRow).registration_code}.xlsx`, [buildEventRow(item as EventRegRow, 1)], 'Submission')
+      const request = { filename: `form-${(item as EventRegRow).registration_code}.xlsx`, rows: [buildEventRow(item as EventRegRow, 1)], sheetName: 'Submission' }
+      if (profile?.role === 'super_admin') setExportRequest(request)
+      else void downloadExcel(request.filename, request.rows, request.sheetName)
     }
   }
 
@@ -428,6 +518,8 @@ export default function FormsSubmitted() {
         Click any row to view the complete submission. The Excel download includes every field collected on the form, including custom
         questions added later.
       </p>
+
+      <SuperAdminExportDialog request={exportRequest} onClose={() => setExportRequest(null)} />
 
       <Modal
         open={!!selectedAccount}

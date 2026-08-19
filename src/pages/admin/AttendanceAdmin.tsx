@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Camera, ChevronDown, ChevronRight, Download, Ticket } from 'lucide-react'
 import { Badge, EmptyState, PageHeader, PageLoader } from '@/components/ui'
+import { SuperAdminExportDialog, type SuperAdminExportRequest } from '@/components/SuperAdminExportDialog'
 import { supabase } from '@/lib/supabase'
 import { downloadExcelSheets } from '@/lib/excel'
 import { cn, formatDate, formatDateTime } from '@/lib/utils'
+import { useAuth } from '@/hooks/useAuth'
 
 interface EventStat {
   event_id: string
@@ -57,12 +59,14 @@ interface LoadedList {
 }
 
 export default function AttendanceAdmin() {
+  const { profile } = useAuth()
   const [rows, setRows] = useState<EventStat[]>([])
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState<Record<string, boolean>>({})
   const [lists, setLists] = useState<Record<string, LoadedList>>({})
   const [roundByEvent, setRoundByEvent] = useState<Record<string, number>>({})
   const [busy, setBusy] = useState<string | null>(null)
+  const [exportRequest, setExportRequest] = useState<SuperAdminExportRequest | null>(null)
 
   useEffect(() => {
     let active = true
@@ -187,10 +191,15 @@ export default function AttendanceAdmin() {
       'Marked at': formatDateTime(a.marked_at),
     }))
     const base = `attendance-${e.title.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`
-    downloadExcelSheets(`${base}-${new Date().toISOString().slice(0, 10)}.xlsx`, [
-      { name: 'Registered', rows: registeredRows },
-      { name: 'Attendance Log', rows: attendanceLogRows },
-    ])
+    const request = {
+      filename: `${base}-${new Date().toISOString().slice(0, 10)}.xlsx`,
+      sheets: [
+        { name: 'Registered', rows: registeredRows },
+        { name: 'Attendance Log', rows: attendanceLogRows },
+      ],
+    }
+    if (profile?.role === 'super_admin') setExportRequest(request)
+    else void downloadExcelSheets(request.filename, request.sheets)
   }
 
   if (loading) return <PageLoader />
@@ -337,6 +346,8 @@ export default function AttendanceAdmin() {
           })}
         </div>
       )}
+
+      <SuperAdminExportDialog request={exportRequest} onClose={() => setExportRequest(null)} />
     </div>
   )
 }
