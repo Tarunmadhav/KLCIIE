@@ -10,6 +10,7 @@ import { cn, endOfDayMs, formatDate, formatDateTime, isEventEnded as isEventEnde
 
 interface RegisteredEvent {
   event_id: string
+  status?: string
   event?: Pick<Event, 'id' | 'title' | 'start_date' | 'start_time' | 'end_date' | 'end_time' | 'status'> | null
 }
 
@@ -75,12 +76,15 @@ export default function MemberQrPage() {
     if (!user) return
     let active = true
     const load = async () => {
+      // A registration made before sign-in may not have member_id yet. The
+      // server links only rows matching this authenticated user's email.
+      await supabase.rpc('link_my_event_registrations')
       const [{ data }, { data: memberData }] = await Promise.all([
         supabase
           .from('event_registrations')
-          .select('event_id, event:events(id, title, start_date, start_time, end_date, end_time, status)')
+          .select('event_id, status, event:events(id, title, start_date, start_time, end_date, end_time, status)')
           .eq('member_id', user.id)
-          .eq('status', 'confirmed'),
+          .neq('status', 'cancelled'),
         supabase.from('member_qr_codes').select('code').eq('member_id', user.id).maybeSingle(),
       ])
       if (!active) return
@@ -246,7 +250,7 @@ export default function MemberQrPage() {
           <CalendarClock size={15} className="text-primary-600" /> Select your event
         </label>
         {rows.length === 0 ? (
-          <p className="text-sm text-slate-400">You have no confirmed registrations yet.</p>
+          <p className="text-sm text-slate-400">You have no event registrations yet.</p>
         ) : (
           <SelectInput
             value={eventId}
@@ -254,8 +258,8 @@ export default function MemberQrPage() {
           >
             <option value="">Choose an event…</option>
             {rows.map((r) => (
-              <option key={r.event_id} value={r.event_id} disabled={!r.event}>
-                {r.event?.title ?? 'Event'}
+              <option key={r.event_id} value={r.event_id} disabled={!r.event || r.event.status === 'cancelled'}>
+                {r.event?.title ?? 'Event unavailable'}{r.event?.status === 'completed' ? ' — Completed' : r.event?.status === 'cancelled' ? ' — Cancelled' : ''}
               </option>
             ))}
           </SelectInput>

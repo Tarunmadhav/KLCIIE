@@ -129,7 +129,7 @@ export default function EventDetailAdmin() {
 
   const deleteEvent = async () => {
     setBusy(true)
-    const { error } = await supabase.from('events').delete().eq('id', event!.id)
+    const { error } = await supabase.rpc('admin_delete_event', { p_event_id: event!.id })
     setBusy(false)
     if (error) {
       setError(errorMessage(error))
