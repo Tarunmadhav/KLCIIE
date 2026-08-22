@@ -8,6 +8,7 @@ import { errorMessage } from '@/lib/utils'
 
 export default function ProfileEdit() {
   const { profile, refreshProfile } = useAuth()
+  const [retrying, setRetrying] = useState(false)
   const [form, setForm] = useState({
     full_name: '',
     phone: '',
@@ -73,6 +74,18 @@ export default function ProfileEdit() {
         <p className="mt-1 text-sm text-slate-500">
           Your account isn't linked to a member profile yet. Please contact the CIIE administrator.
         </p>
+        <Button
+          variant="secondary"
+          className="mt-4"
+          disabled={retrying}
+          onClick={async () => {
+            setRetrying(true)
+            await refreshProfile()
+            setRetrying(false)
+          }}
+        >
+          {retrying ? 'Retrying…' : 'Retry'}
+        </Button>
       </div>
     )
   }

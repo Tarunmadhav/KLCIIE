@@ -79,16 +79,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfile(null)
       return null
     }
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', uid)
-      .maybeSingle()
-    if (!error && data) {
-      setProfile(data as Profile)
-      return data as Profile
+
+    const fetchRow = async (): Promise<{ data: Profile | null; error: { message: string } | null }> => {
+      const res = await supabase.from('profiles').select('*').eq('id', uid).maybeSingle()
+      return { data: (res.data as Profile) ?? null, error: res.error ? { message: res.error.message } : null }
     }
-    return null
+
+    let { data, error } = await fetchRow()
+
+    // Self-heal: an auth account can exist without a profiles row (created
+    // before the on_auth_user_created trigger was applied, or the row was
+    // lost). ensure_my_profile() recreates it idempotently from auth metadata.
+    if (!error && !data) {
+      const { error: rpcError } = await supabase.rpc('ensure_my_profile')
+      if (rpcError) {
+        // eslint-disable-next-line no-console
+        console.error('[useAuth] ensure_my_profile failed:', rpcError.message)
+      } else {
+        const retry = await fetchRow()
+        data = retry.data
+        error = retry.error
+      }
+    }
+
+    if (error) {
+      setProfile(null)
+      // eslint-disable-next-line no-console
+      console.error('[useAuth] Failed to load profile:', error.message)
+      return null
+    }
+    if (!data) {
+      setProfile(null)
+      // eslint-disable-next-line no-console
+      console.error('[useAuth] Profile row is missing for user', uid)
+      return null
+    }
+    setProfile(data)
+    return data
   }, [])
 
   const fetchMfaState = useCallback(async (): Promise<MfaState> => {
