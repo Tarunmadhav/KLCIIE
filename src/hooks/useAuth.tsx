@@ -72,6 +72,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const initialized = useRef(false)
 
+  const markAdminMfaVerified = useCallback(() => {
+    setAdminMfaVerified(true)
+    try {
+      sessionStorage.setItem(ADMIN_MFA_KEY, '1')
+    } catch {
+      // ignore storage errors
+    }
+  }, [])
+
+  const resetAdminMfa = useCallback(() => {
+    setAdminMfaVerified(false)
+    try {
+      sessionStorage.removeItem(ADMIN_MFA_KEY)
+    } catch {
+      // ignore storage errors
+    }
+  }, [])
+
   const loadProfile = useCallback(async (): Promise<Profile | null> => {
     const { data: sessionData } = await supabase.auth.getSession()
     const uid = sessionData.session?.user.id
@@ -109,6 +127,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return null
     }
     if (!data) {
+      // A locally cached session can outlive its auth user (account deleted
+      // server-side): GET /auth/v1/user answers 403 and ensure_my_profile()
+      // cannot recreate the row. Validate against the server and drop the
+      // dead session instead of looping forever.
+      const { data: userData, error: userError } = await supabase.auth.getUser()
+      if (userError || !userData?.user) {
+        setProfile(null)
+        setMfa(null)
+        setUser(null)
+        resetAdminMfa()
+        await supabase.auth.signOut().catch(() => {})
+        // eslint-disable-next-line no-console
+        console.error('[useAuth] Session is invalid (auth user missing/disabled on server) — signed out.', userError?.message)
+        return null
+      }
       setProfile(null)
       // eslint-disable-next-line no-console
       console.error('[useAuth] Profile row is missing for user', uid)
@@ -116,7 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setProfile(data)
     return data
-  }, [])
+  }, [resetAdminMfa])
 
   const fetchMfaState = useCallback(async (): Promise<MfaState> => {
     let aal: Aal = 'aal1'
@@ -137,24 +170,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setMfa(state)
     return state
   }, [fetchMfaState])
-
-  const markAdminMfaVerified = useCallback(() => {
-    setAdminMfaVerified(true)
-    try {
-      sessionStorage.setItem(ADMIN_MFA_KEY, '1')
-    } catch {
-      // ignore storage errors
-    }
-  }, [])
-
-  const resetAdminMfa = useCallback(() => {
-    setAdminMfaVerified(false)
-    try {
-      sessionStorage.removeItem(ADMIN_MFA_KEY)
-    } catch {
-      // ignore storage errors
-    }
-  }, [])
 
   const refreshProfile = useCallback(async (): Promise<Profile | null> => {
     const prof = await loadProfile()
