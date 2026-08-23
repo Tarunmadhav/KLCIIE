@@ -39,6 +39,7 @@ interface ResultRow extends ParsedRow {
   status: 'created' | 'failed' | 'pending'
   password?: string
   mailStatus?: 'sent' | 'failed'
+  mailUsed?: string
   resultError?: string
   role?: string
 }
@@ -221,7 +222,9 @@ export default function BulkAddMembers() {
     setProgress({ done: 0, total: mailList.length })
     let mailed = 0
     for (const r of mailList) {
-      r.mailStatus = (await sendWelcomeMail(r)) ? 'sent' : 'failed'
+      const used = await sendWelcomeMail(r)
+      r.mailStatus = used ? 'sent' : 'failed'
+      if (used) r.mailUsed = used
       mailed += 1
       setProgress({ done: mailed, total: mailList.length })
     }
@@ -230,7 +233,9 @@ export default function BulkAddMembers() {
     setPhase('done')
   }
 
-  const sendWelcomeMail = async (r: ResultRow): Promise<boolean> => {
+  // Sends the welcome email; resolves to the SMTP account (sender address)
+  // that actually delivered it, or null when the send failed.
+  const sendWelcomeMail = async (r: ResultRow): Promise<string | null> => {
     const loginUrl = `${window.location.origin}/login`
     const text =
       `Hi ${r.fullName},\n\n` +
@@ -255,18 +260,22 @@ export default function BulkAddMembers() {
       '<p style="margin:0">Please keep this email safe and do not share your password.<br/><strong>KL CIIE</strong></p>' +
       '</div></div>'
     try {
-      const { error } = await supabase.functions.invoke('send-recruit-email', {
+      const { data, error } = await supabase.functions.invoke('send-recruit-email', {
         body: { to_email: r.email, subject: 'Your KL CIIE account', text, html },
       })
-      return !error
+      if (error) return null
+      const account = (data as { account?: string } | null)?.account
+      return typeof account === 'string' && account ? account : 'unknown sender'
     } catch {
-      return false
+      return null
     }
   }
 
   const resendMail = async (row: ResultRow) => {
-    const ok = await sendWelcomeMail(row)
-    setResults((prev) => prev.map((r) => (r.index === row.index ? { ...r, mailStatus: ok ? 'sent' : 'failed' } : r)))
+    const used = await sendWelcomeMail(row)
+    setResults((prev) =>
+      prev.map((r) => (r.index === row.index ? { ...r, mailStatus: used ? 'sent' : 'failed', mailUsed: used ?? r.mailUsed } : r)),
+    )
   }
 
   const downloadTemplate = async () => {
@@ -297,7 +306,7 @@ export default function BulkAddMembers() {
         Year: r.yearOfStudy,
         Phone: r.phone,
         EmailStatus: r.mailStatus === 'sent' ? 'sent' : r.mailStatus === 'failed' ? 'failed' : '',
-        'Mail Used': r.mailStatus === 'sent' ? r.email : 'Not sent',
+        'Mail Used': r.mailStatus === 'sent' ? r.mailUsed ?? '' : 'Not sent',
       })),
       'Credentials',
     )
@@ -547,7 +556,7 @@ export default function BulkAddMembers() {
                         )}
                       </td>
                       <td className="px-3 py-2 font-mono text-xs text-green-700">
-                        {r.status === 'created' && r.mailStatus === 'sent' ? r.email : '—'}
+                        {r.status === 'created' && r.mailStatus === 'sent' ? r.mailUsed ?? '—' : '—'}
                       </td>
                       <td className="px-3 py-2">
                         {r.status !== 'created' ? (
