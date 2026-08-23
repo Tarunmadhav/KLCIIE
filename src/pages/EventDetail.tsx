@@ -139,7 +139,7 @@ export default function EventDetail() {
 
   return (
     <div>
-      <div className="relative h-56 bg-gradient-to-br from-primary-600 to-primary-900 sm:h-72">
+      <div className="relative aspect-[1774/887] w-full bg-gradient-to-br from-primary-600 to-primary-900">
         {event.banner_url ? (
           <img src={event.banner_url} alt={event.title} className="h-full w-full object-cover" />
         ) : (

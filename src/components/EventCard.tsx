@@ -22,7 +22,7 @@ export default function EventCard({ event, registrations = 0, coordinators = [] 
       to={`/events/${event.slug ?? event.id}`}
       className="card group flex flex-col overflow-hidden transition hover:-translate-y-0.5 hover:shadow-md"
     >
-      <div className="relative h-40 bg-gradient-to-br from-primary-600 to-primary-800">
+      <div className="relative aspect-[1774/887] w-full bg-gradient-to-br from-primary-600 to-primary-800">
         {event.banner_url ? (
           <img src={event.banner_url} alt={event.title} className="h-full w-full object-cover" />
         ) : (
