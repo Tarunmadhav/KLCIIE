@@ -120,7 +120,6 @@ export default function MemberQrPage() {
       const { data, error } = await supabase.rpc('get_my_event_attendance_qr', { p_event_id: id })
       if (!silent) setQrLoading(false)
       if (error) {
-        console.error('get_my_event_attendance_qr error:', error)
         setQrInfo({ started: false, attendance_rounds: 1, rounds: [], error: error.message })
         return
       }

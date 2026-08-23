@@ -111,10 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // lost). ensure_my_profile() recreates it idempotently from auth metadata.
     if (!error && !data) {
       const { error: rpcError } = await supabase.rpc('ensure_my_profile')
-      if (rpcError) {
-        // eslint-disable-next-line no-console
-        console.error('[useAuth] ensure_my_profile failed:', rpcError.message)
-      } else {
+      if (!rpcError) {
         const retry = await fetchRow()
         data = retry.data
         error = retry.error
@@ -123,8 +120,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (error) {
       setProfile(null)
-      // eslint-disable-next-line no-console
-      console.error('[useAuth] Failed to load profile:', error.message)
       return null
     }
     if (!data) {
@@ -139,13 +134,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null)
         resetAdminMfa()
         await supabase.auth.signOut().catch(() => {})
-        // eslint-disable-next-line no-console
-        console.error('[useAuth] Session is invalid (auth user missing/disabled on server) — signed out.', userError?.message)
         return null
       }
       setProfile(null)
-      // eslint-disable-next-line no-console
-      console.error('[useAuth] Profile row is missing for user', uid)
       return null
     }
     setProfile(data)

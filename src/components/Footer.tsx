@@ -23,6 +23,17 @@ export default function Footer() {
           <Logo />
           <p className="mt-4 max-w-md text-sm text-slate-500">{branding.ciie_name}</p>
           <p className="mt-1 text-sm text-slate-400">{branding.institution_name}</p>
+          <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Sponsored by{' '}
+            <a
+              href="https://successkart.vercel.app"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary-600 transition hover:text-primary-700 hover:underline"
+            >
+              SuccessKart
+            </a>
+          </p>
           {socials.length > 0 && (
             <div className="mt-4 flex gap-3">
               {socials.map((s) => (
