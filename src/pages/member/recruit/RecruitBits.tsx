@@ -34,12 +34,16 @@ export function ApplicantInfo({ row }: { row: RecruitApplicationRow }) {
 export function ResponsesView({
   title,
   evaluator,
+  ciieId,
+  submittedAt,
   fields,
   responses,
   remarks,
 }: {
   title: string
   evaluator?: string | null
+  ciieId?: string | null
+  submittedAt?: string | null
   fields?: CustomFieldDef[] | null
   responses?: Record<string, unknown> | null
   remarks?: string | null
@@ -52,7 +56,13 @@ export function ResponsesView({
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
       <p className="text-sm font-bold text-slate-900">{title}</p>
-      {evaluator && <p className="text-xs text-slate-400">Evaluated by {evaluator}</p>}
+      {evaluator && (
+        <p className="text-xs text-slate-400">
+          Evaluated by {evaluator}
+          {ciieId ? ` • ${ciieId}` : ''}
+          {submittedAt ? ` • ${new Date(submittedAt).toLocaleString('en-IN')}` : ''}
+        </p>
+      )}
       {pairs.length === 0 && !remarks ? (
         <p className="mt-2 text-xs text-slate-400">No responses recorded.</p>
       ) : (

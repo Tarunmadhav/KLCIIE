@@ -202,13 +202,22 @@ export default function RecruitFinalSelection() {
                     responses={row.gd_responses}
                     remarks={row.gd_remarks}
                   />
-                  <ResponsesView
-                    title="Interview round"
-                    evaluator={row.interview_evaluator}
-                    fields={row.interview_form_fields}
-                    responses={row.interview_responses}
-                    remarks={row.interview_remarks}
-                  />
+                  {(row.interview_evaluations ?? []).length === 0 ? (
+                    <ResponsesView title="Interview round" fields={row.interview_form_fields} />
+                  ) : (
+                    (row.interview_evaluations ?? []).map((ev, i) => (
+                      <ResponsesView
+                        key={ev.evaluator_id ?? i}
+                        title={`Interview opinion ${i + 1}`}
+                        evaluator={ev.evaluator_name}
+                        ciieId={ev.evaluator_ciie_id}
+                        submittedAt={ev.submitted_at}
+                        fields={row.interview_form_fields}
+                        responses={ev.responses}
+                        remarks={ev.remarks}
+                      />
+                    ))
+                  )}
                 </div>
               </div>
             ))}
@@ -250,13 +259,22 @@ export default function RecruitFinalSelection() {
                     responses={row.gd_responses}
                     remarks={row.gd_remarks}
                   />
-                  <ResponsesView
-                    title="Interview round"
-                    evaluator={row.interview_evaluator}
-                    fields={row.interview_form_fields}
-                    responses={row.interview_responses}
-                    remarks={row.interview_remarks}
-                  />
+                  {(row.interview_evaluations ?? []).length === 0 ? (
+                    <ResponsesView title="Interview round" fields={row.interview_form_fields} />
+                  ) : (
+                    (row.interview_evaluations ?? []).map((ev, i) => (
+                      <ResponsesView
+                        key={ev.evaluator_id ?? i}
+                        title={`Interview opinion ${i + 1}`}
+                        evaluator={ev.evaluator_name}
+                        ciieId={ev.evaluator_ciie_id}
+                        submittedAt={ev.submitted_at}
+                        fields={row.interview_form_fields}
+                        responses={ev.responses}
+                        remarks={ev.remarks}
+                      />
+                    ))
+                  )}
                 </div>
               </div>
             ))}

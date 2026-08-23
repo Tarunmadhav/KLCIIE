@@ -448,6 +448,15 @@ export interface RecruitFormTemplate {
   updated_at?: string
 }
 
+export interface RecruitInterviewEvaluation {
+  evaluator_id: string | null
+  evaluator_name: string | null
+  evaluator_ciie_id: string | null
+  responses: Record<string, unknown> | null
+  remarks: string | null
+  submitted_at: string | null
+}
+
 export interface RecruitApplicationRow {
   application_id: string
   member_id: string | null
@@ -478,6 +487,7 @@ export interface RecruitApplicationRow {
   interview_evaluator: string | null
   interview_remarks: string | null
   interview_responses: Record<string, unknown> | null
+  interview_evaluations: RecruitInterviewEvaluation[] | null
   created_at: string
 }
 

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { ClipboardCheck, Send } from 'lucide-react'
-import { Button, EmptyState, Modal, PageHeader, Spinner, TextArea } from '@/components/ui'
+import { ClipboardCheck, FastForward, Search, Send } from 'lucide-react'
+import { Badge, Button, EmptyState, Modal, PageHeader, Spinner, TextArea, TextInput } from '@/components/ui'
 import { CustomFieldInputs, missingFields } from '@/components/RegistrationFormFields'
 import { useRecruitLive } from '@/hooks/useRecruitLive'
 import { supabase } from '@/lib/supabase'
@@ -17,8 +17,20 @@ export default function RecruitInterview() {
   const [remarks, setRemarks] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [query, setQuery] = useState('')
 
-  const interviewRows = useMemo(() => (rows ?? []).filter((r) => r.stage === 'interview'), [rows])
+  // Applicants stay in this list after an opinion is submitted (and even
+  // after being forwarded) so every panelist can add their own opinion.
+  const interviewRows = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    return (rows ?? [])
+      .filter((r) => r.stage === 'interview' || r.stage === 'final')
+      .filter(
+        (r) =>
+          !q ||
+          [r.full_name, r.email, r.ciie_id, r.student_id].some((v) => v?.toLowerCase().includes(q)),
+      )
+  }, [rows, query])
 
   const open = async (row: RecruitApplicationRow) => {
     setActive(row)
@@ -64,14 +76,42 @@ export default function RecruitInterview() {
     setActive(null)
   }
 
+  const forward = async (row: RecruitApplicationRow) => {
+    if (
+      !window.confirm(
+        `Forward ${row.full_name ?? 'this applicant'} to Final Selection? Other panelists can still add their interview opinions afterwards.`,
+      )
+    )
+      return
+    setError('')
+    const { error: err } = await supabase.rpc('forward_recruit_to_final', {
+      p_application_id: row.application_id,
+    })
+    if (err) setError(errorMessage(err))
+  }
+
+  const opinionCount = (row: RecruitApplicationRow) => (row.interview_evaluations ?? []).length
+
   return (
     <div>
       <PageHeader
         title="Interview Round"
-        subtitle="Only applicants whose GD form has been submitted appear here. Review the GD remarks, then fill the Interview form to forward them to Final Selection."
+        subtitle="Submit your interview opinion — the applicant stays in the list so other panelists can add theirs too. Use Forward to send them to Final Selection."
       />
 
       {liveError && <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{liveError}</p>}
+      {error && !active && <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+
+      <div className="relative mb-4">
+        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <TextInput
+          className="!pl-9"
+          type="search"
+          placeholder="Search name / CIIE ID / email"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      </div>
 
       {interviewRows.length === 0 ? (
         <EmptyState
@@ -84,8 +124,16 @@ export default function RecruitInterview() {
           {interviewRows.map((row) => (
             <div key={row.application_id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
               <ApplicantInfo row={row} />
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2">
                 <StageBadge stage={row.stage} />
+                <Badge tone="slate">
+                  {opinionCount(row)} {opinionCount(row) === 1 ? 'opinion' : 'opinions'}
+                </Badge>
+                {row.stage === 'interview' && (
+                  <Button variant="secondary" className="!px-3 !py-1.5 text-xs" onClick={() => void forward(row)}>
+                    <FastForward size={14} /> Forward to Final
+                  </Button>
+                )}
                 <Button className="!px-3 !py-1.5 text-xs" onClick={() => void open(row)}>
                   <ClipboardCheck size={14} /> Open interview form
                 </Button>
@@ -108,6 +156,26 @@ export default function RecruitInterview() {
               remarks={active.gd_remarks}
             />
 
+            {(active.interview_evaluations ?? []).length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                  Interview opinions so far ({(active.interview_evaluations ?? []).length})
+                </p>
+                {(active.interview_evaluations ?? []).map((ev, i) => (
+                  <ResponsesView
+                    key={ev.evaluator_id ?? i}
+                    title={`Opinion ${i + 1}`}
+                    evaluator={ev.evaluator_name}
+                    ciieId={ev.evaluator_ciie_id}
+                    submittedAt={ev.submitted_at}
+                    fields={active.interview_form_fields}
+                    responses={ev.responses}
+                    remarks={ev.remarks}
+                  />
+                ))}
+              </div>
+            )}
+
             {template ? (
               <>
                 <div>
@@ -123,10 +191,13 @@ export default function RecruitInterview() {
                 <Button className="w-full" disabled={busy} onClick={() => void submit()}>
                   {busy ? <Spinner className="border-white/40 border-t-white" /> : (
                     <>
-                      <Send size={16} /> Submit Interview form &amp; forward to Final Selection
+                      <Send size={16} /> Submit my Interview opinion
                     </>
                   )}
                 </Button>
+                <p className="text-center text-xs text-slate-400">
+                  The applicant stays in the Interview round — forwarding to Final Selection is a separate step.
+                </p>
               </>
             ) : (
               <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">

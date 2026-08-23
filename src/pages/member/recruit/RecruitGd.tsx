@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { ClipboardList, Send, UserPlus } from 'lucide-react'
-import { Button, EmptyState, Modal, PageHeader, Spinner, TextArea } from '@/components/ui'
+import { ClipboardList, Search, Send, UserPlus } from 'lucide-react'
+import { Button, EmptyState, Modal, PageHeader, Spinner, TextArea, TextInput } from '@/components/ui'
 import { CustomFieldInputs, missingFields } from '@/components/RegistrationFormFields'
 import { useRecruitLive } from '@/hooks/useRecruitLive'
 import { supabase } from '@/lib/supabase'
@@ -17,8 +17,18 @@ export default function RecruitGd() {
   const [remarks, setRemarks] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [query, setQuery] = useState('')
 
-  const gdRows = useMemo(() => (rows ?? []).filter((r) => r.stage === 'gd'), [rows])
+  const gdRows = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    return (rows ?? [])
+      .filter((r) => r.stage === 'gd')
+      .filter(
+        (r) =>
+          !q ||
+          [r.full_name, r.email, r.ciie_id, r.student_id].some((v) => v?.toLowerCase().includes(q)),
+      )
+  }, [rows, query])
 
   const open = async (row: RecruitApplicationRow) => {
     setActive(row)
@@ -72,6 +82,17 @@ export default function RecruitGd() {
       />
 
       {liveError && <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{liveError}</p>}
+
+      <div className="relative mb-4">
+        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <TextInput
+          className="!pl-9"
+          type="search"
+          placeholder="Search name / CIIE ID / email"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      </div>
 
       {gdRows.length === 0 ? (
         <EmptyState
