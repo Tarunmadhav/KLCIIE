@@ -22,6 +22,7 @@ async function fetchRows(): Promise<AmtpsMember[]> {
 
 export default function AmtpsAdmin() {
   const [rows, setRows] = useState<AmtpsMember[]>([])
+  const [orderDrafts, setOrderDrafts] = useState<Record<string, string>>({})
   const [editing, setEditing] = useState<AmtpsMember | null>(null)
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState<string | null>(null)
@@ -41,6 +42,16 @@ export default function AmtpsAdmin() {
     const loaded = await fetchRows()
     setRows(loaded)
     setLoading(false)
+    // Heal gaps/duplicate order values left behind by earlier edits so the
+    // lineup is always an exact 1..N sequence.
+    if (loaded.some((m, i) => (m.display_order ?? i) !== i)) {
+      setRows(loaded.map((m, i) => ({ ...m, display_order: i })))
+      await Promise.all(
+        loaded.map((m, i) =>
+          supabase.from('amtps_members').update({ display_order: i }).eq('id', m.id).then((r) => r.error),
+        ),
+      )
+    }
   }
 
   useEffect(() => {
@@ -89,28 +100,55 @@ export default function AmtpsAdmin() {
     if (!next) navigate('/amtps')
   }
 
-  // Move a card up/down in the public lineup and persist the swap.
+  // Persist a new lineup: renumber sequentially and save only changed rows.
+  const persistOrder = async (next: AmtpsMember[], prevRows: AmtpsMember[]) => {
+    const renumbered = next.map((m, i) => ({ ...m, display_order: i }))
+    setRows(renumbered)
+    const changed = renumbered.filter(
+      (m, i) => prevRows[i]?.id !== m.id || prevRows[i]?.display_order !== m.display_order,
+    )
+    const errors = await Promise.all(
+      changed.map((m) =>
+        supabase.from('amtps_members').update({ display_order: m.display_order ?? null }).eq('id', m.id).then((r) => r.error),
+      ),
+    )
+    const firstErr = errors.find(Boolean)
+    if (firstErr) {
+      setError(errorMessage(firstErr))
+      await load()
+    }
+  }
+
+  // Move a card up/down one slot.
   const move = async (index: number, dir: -1 | 1) => {
     const target = index + dir
     if (target < 0 || target >= rows.length) return
     setError('')
-    const a = rows[index]
-    const b = rows[target]
-    const orderA = b.display_order ?? target
-    const orderB = a.display_order ?? index
-    setRows((prev) => {
-      const next = [...prev]
-      ;[next[index], next[target]] = [next[target], next[index]]
-      return next
+    const next = [...rows]
+    ;[next[index], next[target]] = [next[target], next[index]]
+    await persistOrder(next, rows)
+  }
+
+  // Jump a card straight to a typed position number (1-based).
+  const commitOrder = async (index: number) => {
+    const card = rows[index]
+    const raw = orderDrafts[card.id]
+    setOrderDrafts((prev) => {
+      const n = { ...prev }
+      delete n[card.id]
+      return n
     })
-    const [errA, errB] = await Promise.all([
-      supabase.from('amtps_members').update({ display_order: orderA }).eq('id', a.id).then((r) => r.error),
-      supabase.from('amtps_members').update({ display_order: orderB }).eq('id', b.id).then((r) => r.error),
-    ])
-    if (errA || errB) {
-      setError(errorMessage(errA ?? errB))
-      await load()
+    if (raw == null || raw.trim() === '') return
+    const pos = Number(raw)
+    if (!Number.isInteger(pos) || pos < 1 || pos > rows.length || pos - 1 === index) {
+      setError(`Enter a position between 1 and ${rows.length}.`)
+      return
     }
+    setError('')
+    const next = [...rows]
+    const [moved] = next.splice(index, 1)
+    next.splice(pos - 1, 0, moved)
+    await persistOrder(next, rows)
   }
 
   if (loading) return <PageLoader />
@@ -187,7 +225,22 @@ export default function AmtpsAdmin() {
                   >
                     <ArrowUp size={14} />
                   </button>
-                  <span className="text-[10px] font-bold text-slate-300">{i + 1}</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={rows.length}
+                    value={orderDrafts[m.id] ?? String(i + 1)}
+                    onChange={(e) => setOrderDrafts((prev) => ({ ...prev, [m.id]: e.target.value }))}
+                    onBlur={() => void commitOrder(i)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        e.currentTarget.blur()
+                      }
+                    }}
+                    title="Type a position number and press Enter"
+                    className="w-10 rounded-md border border-slate-200 px-0.5 py-0.5 text-center text-[11px] font-bold text-slate-600 focus:border-primary-400 focus:outline-none"
+                  />
                   <button
                     className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-primary-600 disabled:opacity-30"
                     title="Move down — appears later on the Members page"
