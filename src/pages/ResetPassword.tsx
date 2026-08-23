@@ -3,7 +3,7 @@ import { KeyRound, MailCheck, ShieldCheck } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button, Field, Spinner, TextInput } from '@/components/ui'
 import { supabase } from '@/lib/supabase'
-import { emailInvokeMessage } from '@/lib/utils'
+import { emailInvokeMessage, errorMessage } from '@/lib/utils'
 
 export default function ResetPassword() {
   const [step, setStep] = useState<'email' | 'otp' | 'done'>('email')
@@ -62,12 +62,16 @@ export default function ResetPassword() {
       return
     }
     setBusy(true)
-    const { data } = await supabase.rpc('reset_password_with_otp', {
+    const { data, error: rpcError } = await supabase.rpc('reset_password_with_otp', {
       p_email: email.trim(),
       p_code: code.trim(),
       p_new_password: password,
     })
     setBusy(false)
+    if (rpcError) {
+      setError(errorMessage(rpcError))
+      return
+    }
     if (!(data as { ok?: boolean } | null)?.ok) {
       setError((data as { error?: string } | null)?.error ?? 'Could not reset the password. Please try again.')
       return

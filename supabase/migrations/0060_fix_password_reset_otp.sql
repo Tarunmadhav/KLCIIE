@@ -1,18 +1,5 @@
--- ============================================================================
--- 0059: Password reset via email OTP
---
--- reset_password_with_otp(email, code, new_password):
---   1. Validates the 6-digit OTP against public.email_otp_codes
---      (purpose = 'password-reset', the same codes the send-recruit-email
---      edge function emails). Expiry + max-5-wrong-attempts rules match
---      verify_email_otp.
---   2. Consumes the code (single use) and updates auth.users.encrypted_password.
---   3. Revokes all refresh tokens so every other session must log in again.
---   4. Writes an audit entry when a profile row exists for the user.
---
--- Callable by anon (the whole point — the requester has forgotten their
--- password), gated by possession of a fresh, valid, single-use OTP.
--- ============================================================================
+-- 0060: Fix password reset hashing for functions with an empty search_path.
+-- Migration 0059 called crypt/gen_salt without the public schema prefix.
 
 create or replace function public.reset_password_with_otp(
   p_email text,
@@ -66,19 +53,16 @@ begin
   limit 1;
 
   if v_user_id is null then
-    -- Do NOT consume the code; generic message avoids account enumeration.
     return jsonb_build_object('ok', false, 'error', 'Unable to reset the password for this email. Please contact CIIE support.');
   end if;
-
-  update public.email_otp_codes set consumed_at = now() where id = v_row.id;
 
   update auth.users
   set encrypted_password = public.crypt(btrim(p_new_password), public.gen_salt('bf')),
       updated_at = now()
   where id = v_user_id;
 
-  -- Force re-login everywhere with the old credentials.
   delete from auth.refresh_tokens where user_id = v_user_id;
+  update public.email_otp_codes set consumed_at = now() where id = v_row.id;
 
   if exists (select 1 from public.profiles where id = v_user_id) then
     insert into public.admin_audit_logs (actor_id, action, entity_type, entity_id, details)
