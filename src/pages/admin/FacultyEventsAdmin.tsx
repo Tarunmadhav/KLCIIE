@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Ticket } from 'lucide-react'
+import { GraduationCap, Plus, Users } from 'lucide-react'
 import { Badge, EmptyState, PageHeader, PageLoader } from '@/components/ui'
 import { supabase } from '@/lib/supabase'
 import type { Event } from '@/lib/types'
@@ -18,7 +18,7 @@ interface EventStats {
   certificates: number
 }
 
-export default function EventsAdmin() {
+export default function FacultyEventsAdmin() {
   const [events, setEvents] = useState<Event[]>([])
   const [stats, setStats] = useState<Record<string, EventStats>>({})
   const [loading, setLoading] = useState(true)
@@ -29,7 +29,7 @@ export default function EventsAdmin() {
       const { data: eventsData } = await supabase
         .from('events')
         .select('*')
-        .neq('audience', 'faculty')
+        .eq('audience', 'faculty')
         .order('start_date', { ascending: false })
       const { data: statsData } = await supabase.rpc('admin_get_event_stats')
       if (active) {
@@ -51,17 +51,17 @@ export default function EventsAdmin() {
   return (
     <div>
       <PageHeader
-        title="Events"
-        subtitle="Create and manage CIIE events."
+        title="Faculty Events"
+        subtitle="Events for faculty members — everyone with the Faculty role is registered automatically and gets their attendance QR without registering."
         actions={
-          <Link to="/admin/events/new" className="btn-primary">
-            <Plus size={16} /> New event
+          <Link to="/admin/faculty-events/new" className="btn-primary">
+            <Plus size={16} /> New faculty event
           </Link>
         }
       />
 
       {events.length === 0 ? (
-        <EmptyState icon={<Ticket size={40} />} title="No events yet" subtitle="Create your first CIIE event." />
+        <EmptyState icon={<GraduationCap size={40} />} title="No faculty events yet" subtitle="Create your first faculty event." />
       ) : (
         <div className="card overflow-x-auto">
           <table className="w-full min-w-[720px] text-left text-sm">
@@ -69,8 +69,8 @@ export default function EventsAdmin() {
               <tr>
                 <th className="px-5 py-3">Event</th>
                 <th className="px-5 py-3">Date</th>
-                <th className="px-5 py-3">Registrations</th>
-                <th className="px-5 py-3">Team</th>
+                <th className="px-5 py-3">Rounds</th>
+                <th className="px-5 py-3">Faculty</th>
                 <th className="px-5 py-3">Status</th>
                 <th className="px-5 py-3 text-right">Actions</th>
               </tr>
@@ -81,14 +81,18 @@ export default function EventsAdmin() {
                 return (
                   <tr key={e.id} className="hover:bg-slate-50">
                     <td className="px-5 py-3">
-                      <Link to={`/admin/events/${e.id}`} className="font-semibold text-slate-900 hover:text-primary-600">
+                      <Link to={`/admin/faculty-events/${e.id}/edit`} className="font-semibold text-slate-900 hover:text-primary-600">
                         {e.title}
                       </Link>
                       <p className="text-xs text-slate-400">{e.category} • {e.venue ?? e.mode}</p>
                     </td>
                     <td className="px-5 py-3 text-slate-600">{formatDate(e.start_date)}</td>
-                    <td className="px-5 py-3 text-slate-600">{s?.registrations ?? 0} ({s?.present ?? 0} present)</td>
-                    <td className="px-5 py-3 text-slate-600">{s?.team_size ?? 0}</td>
+                    <td className="px-5 py-3 text-slate-600">{e.attendance_rounds}</td>
+                    <td className="px-5 py-3">
+                      <span className="inline-flex items-center gap-1.5 text-slate-600">
+                        <Users size={14} /> {s?.registrations ?? 0} ({s?.present ?? 0} present)
+                      </span>
+                    </td>
                     <td className="px-5 py-3">
                       <Badge tone={e.status === 'published' ? 'green' : e.status === 'completed' ? 'slate' : e.status === 'cancelled' ? 'red' : 'amber'}>
                         {e.status}
@@ -96,9 +100,8 @@ export default function EventsAdmin() {
                     </td>
                     <td className="px-5 py-3 text-right">
                       <div className="flex justify-end gap-2">
-                        <Link to={`/events/${e.slug ?? e.id}`} className="btn-ghost !px-2.5 !py-1">View</Link>
-                        <Link to={`/admin/events/${e.id}/team`} className="btn-ghost !px-2.5 !py-1">Team</Link>
-                        <Link to={`/admin/events/${e.id}/edit`} className="btn-secondary !px-2.5 !py-1">Edit</Link>
+                        <Link to={`/admin/attendance/${e.id}`} className="btn-ghost !px-2.5 !py-1">Attendance</Link>
+                        <Link to={`/admin/faculty-events/${e.id}/edit`} className="btn-secondary !px-2.5 !py-1">Edit</Link>
                       </div>
                     </td>
                   </tr>

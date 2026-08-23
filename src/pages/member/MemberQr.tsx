@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { CalendarClock, CheckCircle2, QrCode as QrIcon, RefreshCw } from 'lucide-react'
+import { CalendarClock, CheckCircle2, Clock, QrCode as QrIcon, RefreshCw } from 'lucide-react'
 import { Badge, PageLoader, SelectInput } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
 import { useBranding } from '@/hooks/useBranding'
 import { qrWithLogoDataUrl } from '@/lib/qr'
 import { supabase } from '@/lib/supabase'
-import type { Event } from '@/lib/types'
+import type { Event, RoundWindow } from '@/lib/types'
 import { cn, endOfDayMs, formatDate, formatDateTime, isEventEnded as isEventEndedFn, kolkataMs } from '@/lib/utils'
 
 interface RegisteredEvent {
@@ -29,6 +29,9 @@ interface QrInfo {
   closed?: boolean
   attendance_rounds?: number
   rounds?: RoundInfo[]
+  active_round?: number | null
+  round_windows?: RoundWindow[]
+  audience?: 'members' | 'faculty'
   event_title?: string
   start_date?: string
   start_time?: string
@@ -58,9 +61,9 @@ export default function MemberQrPage() {
   const [nowTick, setNowTick] = useState(0)
   const [nowMs, setNowMs] = useState(() => Date.now())
 
-  // Attendance QR codes rotate server-side every ~100 seconds so a
+  // Attendance QR codes rotate server-side every ~60 seconds so a
   // screenshotted QR expires quickly after it was captured.
-  const QR_ROTATE_MS = 100000
+  const QR_ROTATE_MS = 60000
 
   const copyCode = async (code: string) => {
     try {
@@ -163,9 +166,10 @@ export default function MemberQrPage() {
     return () => window.clearInterval(id)
   }, [])
 
+  const selectedRoundNum = activeRound ?? qrInfo?.active_round ?? null
   const shownRound = useMemo(
-    () => (qrInfo?.rounds ?? []).find((x) => x.round === activeRound) ?? (qrInfo?.rounds ?? [])[0],
-    [qrInfo, activeRound],
+    () => (qrInfo?.rounds ?? []).find((x) => x.round === selectedRoundNum) ?? null,
+    [qrInfo, selectedRoundNum],
   )
   const shownCode = shownRound?.code ?? null
 
@@ -192,6 +196,13 @@ export default function MemberQrPage() {
     const endTime = qrInfo?.end_time ?? selectedEvent?.end_time ?? null
     if (startDate) transitions.push(kolkataMs(startDate, startTime))
     if (endDate) transitions.push(endTime ? kolkataMs(endDate, endTime) : endOfDayMs(endDate))
+    // Round windows (faculty events): auto-refresh when a window opens/closes.
+    for (const w of qrInfo?.round_windows ?? []) {
+      const s = new Date(w.starts_at).getTime()
+      const e = new Date(w.ends_at).getTime()
+      if (Number.isFinite(s)) transitions.push(s)
+      if (Number.isFinite(e)) transitions.push(e)
+    }
     const now = Date.now()
     const next = transitions.filter((t) => t > now).sort((a, b) => a - b)[0]
     if (next == null) return
@@ -209,6 +220,21 @@ export default function MemberQrPage() {
   const qrClosed = !!qrInfo?.closed || eventEnded
   const endDate = qrInfo?.end_date ?? selectedEvent?.end_date ?? null
   const endTime = qrInfo?.end_time ?? selectedEvent?.end_time ?? null
+
+  // Round-window waiting state: the event is running but no round's window is
+  // open right now (faculty events with admin-configured round times).
+  const windows = useMemo(() => {
+    const list = [...(qrInfo?.round_windows ?? [])].sort((a, b) => a.round - b.round)
+    return list.map((w) => {
+      const s = new Date(w.starts_at).getTime()
+      const e = new Date(w.ends_at).getTime()
+      const now = nowMs
+      return { ...w, s, e, past: now >= e, active: now >= s && now < e }
+    })
+  }, [qrInfo, nowMs])
+  const anyWindowActive = windows.some((w) => w.active)
+  const waitingForRound =
+    !!qrInfo?.started && !qrClosed && windows.length > 0 && !anyWindowActive
 
   useEffect(() => {
     if (!eventId || !started || qrClosed) return
@@ -283,6 +309,32 @@ export default function MemberQrPage() {
                   </p>
                 )}
               </div>
+            ) : waitingForRound ? (
+              <div className="rounded-xl bg-sky-50 px-4 py-3 text-sm text-sky-800">
+                <p className="font-semibold">No attendance round is open right now.</p>
+                <p className="mt-1 text-xs text-sky-700">
+                  Your QR unlocks automatically during each round's window — this page updates by itself.
+                </p>
+                <ul className="mt-3 space-y-1.5">
+                  {windows.map((w) => (
+                    <li
+                      key={w.round}
+                      className={cn(
+                        'flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium',
+                        w.active ? 'bg-green-100 text-green-800' : w.past ? 'bg-white/60 text-slate-400' : 'bg-white/80 text-slate-600',
+                      )}
+                    >
+                      <Clock size={13} className={w.active ? 'text-green-600' : 'text-slate-400'} />
+                      <span className="font-bold">Round {w.round}</span>
+                      <span>
+                        {formatDateTime(w.starts_at)} → {formatDateTime(w.ends_at)}
+                      </span>
+                      {w.active && <Badge tone="green">Open now</Badge>}
+                      {w.past && <span className="ml-auto text-[10px] uppercase tracking-wide">Closed</span>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ) : qrInfo.started ? (
               <div>
                 <div className="mb-3 text-center text-sm font-bold text-slate-700">
@@ -293,7 +345,7 @@ export default function MemberQrPage() {
 
                 <div className="mb-4 flex flex-wrap items-center justify-center gap-2">
                   {(qrInfo.rounds ?? []).map((r) => {
-                    const isActive = activeRound === r.round
+                    const isActive = selectedRoundNum === r.round
                     return (
                       <button
                         key={r.round}
@@ -373,7 +425,7 @@ export default function MemberQrPage() {
                   })()}
 
                 <p className="mt-3 flex items-center justify-center gap-1.5 rounded-xl bg-slate-100 px-4 py-3 text-xs text-slate-500">
-                  <QrIcon size={15} /> The QR rotates automatically every ~100 seconds — show the current one, and never share a screenshot. The moment you're marked present, the tick appears instantly.
+                  <QrIcon size={15} /> The QR rotates automatically every ~60 seconds — show the current one, and never share a screenshot. The moment you're marked present, the tick appears instantly.
                 </p>
                 <button className="btn-secondary mt-3 w-full" onClick={() => refreshQr(eventId)}>
                   <RefreshCw size={14} /> Refresh QRs

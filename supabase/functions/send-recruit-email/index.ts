@@ -5,12 +5,16 @@
 // Super Admin in the Admin panel (/admin/smtp). The credentials live in the
 // public.smtp_settings table (super-admin MFA-gated), NOT in env secrets.
 //
-// Failover: accounts are tried in position order (1st, 2nd, 3rd ...). If a send
-// fails it is recorded and the next account is tried SILENTLY. The user only
-// sees an error when every configured account has failed. If 1 or 2 accounts
-// are configured, only those are used. When no accounts are configured the
-// function falls back to SMTP_HOST / SMTP_USER / SMTP_PASS / SMTP_FROM env
-// secrets (legacy, e.g. `npx supabase secrets set --env-file .env`).
+// Round-robin rotation: sends do NOT all go out through account #1. Every send
+// starts at the next active account in the pool (1st mail -> 1st account,
+// 2nd mail -> 2nd account, ... looping back after the last), tracked by a
+// global counter in public.smtp_rotation_state, so bulk mailings spread load
+// evenly across all configured Gmail accounts. Failover still applies within
+// one send: if the chosen account fails, the remaining accounts are tried in
+// rotated order and the user only sees an error when every account failed.
+// If 1 or 2 accounts are configured, only those are used. When no accounts
+// are configured the function falls back to SMTP_HOST / SMTP_USER / SMTP_PASS /
+// SMTP_FROM env secrets (legacy, e.g. `npx supabase secrets set --env-file .env`).
 //
 // Kinds:
 //   * kind = 'join-verification' — the anonymous "Join CIIE" flow. No JWT is
@@ -131,6 +135,39 @@ async function loadSmtpAccountById(admin: ReturnType<typeof createClient>, id: s
     host: (data.host as string | null) || "smtp.gmail.com",
     port: Number(data.port) || 465,
   }
+}
+
+// Round-robin over the active pool: read + bump the global counter so each
+// send starts at the next account (mail 1 -> account 1, mail 2 -> account 2,
+// ... wrapping around). The returned array is the pool reordered to start at
+// the chosen account; sendWithFailover then walks it in order, which doubles
+// as failover if the first pick errors.
+async function rotateAccounts(
+  admin: ReturnType<typeof createClient>,
+  accounts: SmtpAccount[],
+): Promise<SmtpAccount[]> {
+  const pool = [...accounts]
+  if (pool.length <= 1) return pool
+
+  let start = -1
+  try {
+    const { data } = await admin
+      .from("smtp_rotation_state")
+      .select("next_index")
+      .eq("id", true)
+      .maybeSingle()
+    start = Number(data?.next_index ?? 0)
+    await admin
+      .from("smtp_rotation_state")
+      .update({ next_index: start + 1 })
+      .eq("id", true)
+  } catch {
+    // Rotation state is best-effort; without it we keep position order.
+    return pool
+  }
+
+  const offset = ((start % pool.length) + pool.length) % pool.length
+  return [...pool.slice(offset), ...pool.slice(0, offset)]
 }
 
 async function sendWithAccount(account: SmtpAccount, opts: SendOptions): Promise<void> {
@@ -328,7 +365,7 @@ Deno.serve(async (req: Request) => {
       + `<p style="margin:0">Regards,<br/><strong>KL CIIE</strong></p>`
       + `</div></div>`
 
-    const result = await sendWithFailover(admin, await loadSmtpAccounts(admin), {
+    const result = await sendWithFailover(admin, await rotateAccounts(admin, await loadSmtpAccounts(admin)), {
       to,
       subject,
       text,
@@ -375,7 +412,7 @@ Deno.serve(async (req: Request) => {
     const pinned = await loadSmtpAccountById(admin, payload.smtp_id)
     accounts = pinned ? [pinned] : []
   } else {
-    accounts = await loadSmtpAccounts(admin)
+    accounts = await rotateAccounts(admin, await loadSmtpAccounts(admin))
   }
 
   const result = await sendWithFailover(admin, accounts, {

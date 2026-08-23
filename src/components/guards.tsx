@@ -85,3 +85,12 @@ export function RequireCiiieMember({ children }: { children?: ReactNode }) {
   if (!profile || profile.role !== 'member_ciie') return <Navigate to="/dashboard" replace />
   return <>{children ?? <Outlet />}</>
 }
+
+export function RequireFaculty({ children }: { children?: ReactNode }) {
+  const { user, profile, loading } = useAuth()
+  const location = useLocation()
+  if (loading) return <PageLoader />
+  if (!user) return <Navigate to="/login" state={{ from: location.pathname }} replace />
+  if (!profile || profile.role !== 'faculty') return <Navigate to="/dashboard" replace />
+  return <>{children ?? <Outlet />}</>
+}

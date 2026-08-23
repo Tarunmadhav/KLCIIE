@@ -7,8 +7,12 @@ import {
   ClipboardCheck,
   ClipboardList,
   ContactRound,
+  FileInput,
+  FileSpreadsheet,
   FileText,
+  GraduationCap,
   Images,
+  Inbox,
   KeyRound,
   LayoutDashboard,
   Link2,
@@ -32,6 +36,7 @@ import {
   UserPlus,
   Users,
   X,
+  Zap,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { ROLE_LABELS } from '@/lib/types'
@@ -50,6 +55,7 @@ export default function AdminLayout() {
       items: [
         { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
         { to: '/admin/events', label: 'Events', icon: Ticket },
+        { to: '/admin/faculty-events', label: 'Faculty Events', icon: GraduationCap },
         { to: '/admin/roles', label: 'Event Roles', icon: Settings },
         { to: '/admin/point-rules', label: 'Point Rules', icon: Trophy },
         ...(isSuperAdmin ? [{ to: '/admin/points', label: 'Points & Awards', icon: Award }] : []),
@@ -60,6 +66,7 @@ export default function AdminLayout() {
       items: [
         { to: '/admin/members', label: 'Members', icon: Users },
         ...(isSuperAdmin ? [{ to: '/admin/members/add', label: 'Add Member', icon: UserPlus }] : []),
+        ...(isSuperAdmin ? [{ to: '/admin/members/bulk-add', label: 'Bulk Add Members', icon: FileSpreadsheet }] : []),
         ...(isSuperAdmin ? [{ to: '/admin/amtps', label: 'AMTPS', icon: ContactRound }] : []),
         { to: '/admin/recruits', label: 'Recruits', icon: UserCheck },
         ...(isOnlySuperAdmin ? [{ to: '/admin/admins', label: 'Admins & MFA', icon: Shield }] : []),
@@ -87,6 +94,8 @@ export default function AdminLayout() {
         { to: '/admin/announcements', label: 'Announcements', icon: Megaphone },
         { to: '/admin/content', label: 'Content (CMS)', icon: Newspaper },
         { to: '/admin/forms-submitted', label: 'Forms Submitted', icon: ListChecks },
+        { to: '/admin/faculty-forms', label: 'Forms for Faculty', icon: FileInput },
+        { to: '/admin/faculty-forms/submissions', label: 'Faculty Forms Submitted', icon: Inbox },
       ],
     },
     ...(isSuperAdmin
@@ -95,6 +104,7 @@ export default function AdminLayout() {
             label: 'Admin Controls',
             items: [
               { to: '/admin/events', label: 'Register Users', icon: UserPlus },
+              { to: '/admin/force-register', label: 'Force Register', icon: Zap },
               { to: '/admin/attendance-records', label: 'Manual Attendance', icon: ClipboardCheck },
               { to: '/admin/members', label: 'All Users', icon: Users },
             ],

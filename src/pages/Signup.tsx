@@ -1,12 +1,12 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { CalendarCheck, MailCheck, UserPlus } from 'lucide-react'
+import { CalendarCheck, CircleSlash, MailCheck, UserPlus } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useSettings } from '@/hooks/useSettings'
 import { Button, Field, Spinner, TextInput } from '@/components/ui'
 import { CustomFieldInputs, missingFields } from '@/components/RegistrationFormFields'
 import type { CustomFieldDef } from '@/lib/types'
-import { emailInvokeMessage, errorMessage } from '@/lib/utils'
+import { emailInvokeMessage, errorMessage, isValidTenDigit } from '@/lib/utils'
 
 const DEFAULT_FIELDS: CustomFieldDef[] = [
   { key: 'phone', label: 'Phone number', type: 'text', required: true },
@@ -26,12 +26,6 @@ export default function Signup() {
   const [busy, setBusy] = useState(false)
   const [submitted, setSubmitted] = useState<{ fullName: string; batch: 1 | 2 | null } | null>(null)
 
-  useEffect(() => {
-    if (!settings.allow_public_signup) {
-      navigate('/login', { replace: true })
-    }
-  }, [settings.allow_public_signup, navigate])
-
   const fields = settings.signup_fields && settings.signup_fields.length > 0 ? settings.signup_fields : DEFAULT_FIELDS
 
   const submit = async (e: FormEvent) => {
@@ -43,8 +37,12 @@ export default function Signup() {
       setError(missing)
       return
     }
-    if (!fullName.trim() || !studentId.trim()) {
-      setError('Please enter your full name and student ID.')
+    if (!fullName.trim()) {
+      setError('Please enter your full name.')
+      return
+    }
+    if (!isValidTenDigit(studentId)) {
+      setError('Student ID is required and must be exactly 10 digits.')
       return
     }
 
@@ -123,7 +121,23 @@ export default function Signup() {
     nav()
   }
 
-  if (!settings.allow_public_signup) return null
+  if (!settings.allow_public_signup) {
+    return (
+      <div className="card p-8">
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-6 text-center">
+          <CircleSlash size={36} className="mx-auto mb-3 text-amber-500" />
+          <h1 className="text-lg font-extrabold text-amber-900">CIIE is not recruiting now</h1>
+          <p className="mt-1 text-sm font-medium text-amber-700">CIIE recruitment is currently closed.</p>
+        </div>
+        <p className="mt-6 text-center text-sm text-slate-500">
+          Already have an account?{' '}
+          <Link to="/login" className="font-semibold text-primary-600 hover:underline">
+            Log in
+          </Link>
+        </p>
+      </div>
+    )
+  }
 
   if (submitted) {
     return (
@@ -165,7 +179,7 @@ export default function Signup() {
           <TextInput required value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Rahul Kumar" />
         </Field>
         <Field label="Student ID (university roll number)">
-          <TextInput required inputMode="numeric" value={studentId} onChange={(e) => setStudentId(e.target.value.replace(/\D/g, '').slice(0, 20))} placeholder="e.g. 2300123456" />
+          <TextInput required inputMode="numeric" value={studentId} onChange={(e) => setStudentId(e.target.value.replace(/\D/g, '').slice(0, 10))} placeholder="e.g. 2300123456" />
         </Field>
         <Field label="Email" hint={settings.signup_domain_restriction ? (settings.signup_email_otp ? 'A valid student email is mandatory. We send a verification code to this address.' : 'A valid student email is mandatory.') : undefined}>
           <TextInput type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={settings.signup_domain_restriction ? 'you@kluniversity.in' : 'you@example.com'} />

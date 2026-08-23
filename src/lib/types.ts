@@ -9,7 +9,7 @@ export type AdminRole =
   | 'attendance_coordinator'
   | 'mail_admin'
 
-export type Role = 'user' | 'member' | 'member_ciie' | AdminRole
+export type Role = 'user' | 'member' | 'member_ciie' | 'faculty' | AdminRole
 
 export interface Profile {
   id: string
@@ -33,6 +33,8 @@ export interface Profile {
   interview_batch: 1 | 2 | null
   mfa_enabled: boolean
   mfa_setup_required: boolean
+  pre_temp_role: Role | null
+  temp_role_expires_at: string | null
   last_login_at: string | null
   created_at: string
   updated_at: string
@@ -81,6 +83,29 @@ export interface CustomFieldDef {
   type: 'text' | 'number' | 'select' | 'textarea'
   required: boolean
   options?: string[]
+}
+
+export type FacultyFormStatus = 'draft' | 'published' | 'closed'
+
+export interface FacultyForm {
+  id: string
+  title: string
+  description: string | null
+  fields: CustomFieldDef[]
+  status: FacultyFormStatus
+  allow_multiple: boolean
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface FacultyFormSubmission {
+  id: string
+  form_id: string
+  member_id: string
+  responses: Record<string, string>
+  submitted_at: string
+  updated_at: string
 }
 
 export interface RegistrationRole {
@@ -160,6 +185,7 @@ export interface Event {
   registration_deadline: string | null
   seats: number
   status: 'draft' | 'published' | 'completed' | 'cancelled'
+  audience: 'members' | 'faculty'
   registration_enabled: boolean
   show_team_public: boolean
   coordinator_note: string | null
@@ -168,6 +194,12 @@ export interface Event {
   created_by: string | null
   created_at: string
   updated_at: string
+}
+
+export interface RoundWindow {
+  round: number
+  starts_at: string
+  ends_at: string
 }
 
 export interface EventRole {
@@ -476,6 +508,7 @@ export const ROLE_LABELS: Record<Role, string> = {
   user: 'User',
   member: 'Member',
   member_ciie: 'CIIE Member',
+  faculty: 'Faculty',
   super_admin: 'Super Admin',
   main_admin: 'Main Admin',
   event_admin: 'Event Admin',

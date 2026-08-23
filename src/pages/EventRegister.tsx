@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Ticket } from 'lucide-react'
 import { Button, Field, PageLoader, SelectInput, Spinner, TextInput, TextArea } from '@/components/ui'
-import PhoneInput from '@/components/PhoneInput'
+import PhoneInput, { parsePhone } from '@/components/PhoneInput'
 import { useAuth } from '@/hooks/useAuth'
 import { fetchEvent } from '@/lib/queries'
 import { supabase } from '@/lib/supabase'
 import type { Event, EventRegistration } from '@/lib/types'
-import { errorMessage, seatsRemaining } from '@/lib/utils'
+import { errorMessage, isValidTenDigit, seatsRemaining } from '@/lib/utils'
 
 interface FormField {
   key: string
@@ -65,16 +65,18 @@ export default function EventRegister() {
   const fields = (event.form_fields as unknown as FormField[]) ?? []
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (
-      !name.trim() ||
-      !studentId.trim() ||
-      !email.trim() ||
-      !phone.trim() ||
-      !department.trim() ||
-      !year.trim() ||
-      !college.trim()
-    ) {
+    if (!name.trim() || !email.trim() || !department.trim() || !year.trim() || !college.trim()) {
       setError('Please fill in all required fields.')
+      setBusy(false)
+      return
+    }
+    if (!isValidTenDigit(studentId)) {
+      setError('Student ID is required and must be exactly 10 digits.')
+      setBusy(false)
+      return
+    }
+    if (!isValidTenDigit(parsePhone(phone).number)) {
+      setError('Phone number is required and must be exactly 10 digits.')
       setBusy(false)
       return
     }
@@ -132,8 +134,8 @@ export default function EventRegister() {
           <Field label="Full name *">
             <TextInput required value={name} onChange={(e) => setName(e.target.value)} placeholder="Rahul Kumar" />
           </Field>
-          <Field label="Student ID (university roll number) *">
-            <TextInput required value={studentId} onChange={(e) => setStudentId(e.target.value.replace(/\D/g, '').slice(0, 20))} placeholder="e.g. 2300123456" inputMode="numeric" />
+          <Field label="Student ID (university roll number) *" hint="Exactly 10 digits">
+            <TextInput required maxLength={10} value={studentId} onChange={(e) => setStudentId(e.target.value.replace(/\D/g, '').slice(0, 10))} placeholder="e.g. 2300123456" inputMode="numeric" />
           </Field>
           <Field label="Email *">
             <TextInput type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />

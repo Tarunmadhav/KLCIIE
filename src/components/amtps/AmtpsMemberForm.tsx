@@ -3,7 +3,7 @@ import { ImageUp } from 'lucide-react'
 import { Avatar, Button, Field, TextArea, TextInput } from '@/components/ui'
 import { supabase } from '@/lib/supabase'
 import type { AmtpsMember } from '@/lib/types'
-import { errorMessage } from '@/lib/utils'
+import { errorMessage, isValidTenDigit } from '@/lib/utils'
 
 const emptyForm = {
   full_name: '',
@@ -69,8 +69,16 @@ export default function AmtpsMemberForm({ initial, onSaved, submitLabel = 'Add m
   }
 
   const submit = async () => {
-    setBusy(true)
     setError('')
+    if (!form.full_name.trim()) {
+      setError('Name is required.')
+      return
+    }
+    if (!isValidTenDigit(form.student_id)) {
+      setError('Student ID is required and must be exactly 10 digits.')
+      return
+    }
+    setBusy(true)
     const params = {
       p_full_name: form.full_name.trim() || null,
       p_email: form.email.trim() || null,
@@ -126,8 +134,8 @@ export default function AmtpsMemberForm({ initial, onSaved, submitLabel = 'Add m
         <Field label="Email">
           <TextInput value={form.email} onChange={(e) => set('email', e.target.value)} placeholder="name@email.com" />
         </Field>
-        <Field label="Student Id">
-          <TextInput inputMode="numeric" value={form.student_id} onChange={(e) => set('student_id', e.target.value.replace(/\D/g, '').slice(0, 20))} placeholder="e.g. 22B81A0501" />
+        <Field label="Student Id *" hint="Exactly 10 digits">
+          <TextInput required maxLength={10} inputMode="numeric" value={form.student_id} onChange={(e) => set('student_id', e.target.value.replace(/\D/g, '').slice(0, 10))} placeholder="e.g. 2300123456" />
         </Field>
         <Field label="Department">
           <TextInput value={form.department} onChange={(e) => set('department', e.target.value)} placeholder="CSE" />

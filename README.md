@@ -36,6 +36,8 @@ Apply the migrations in order against your Supabase project (SQL Editor, or
 | `0005_seed.sql` | Default point rules, event roles, branding row, optional starter events |
 | `0006_helpers.sql` | Client-facing helpers: `log_failed_admin_login`, `log_admin_login`, `log_admin_event`, ticket lookup, `get_admin_audit_logs` |
 | `0007_recruitment_and_settings.sql` | `platform_settings` (single row), recruitment statuses + `interview_batch`, `event_team_members.hours_worked`, super-admin-only `admin_aal2()` |
+| `0048_bulk_members_and_smtp_roundrobin.sql` | Lets the service role activate profiles for bulk import; adds `smtp_rotation_state` for round-robin SMTP rotation |
+| `0049_force_register_bulk.sql` | Bulk `admin_force_register_event_users(event_id, member_ids[])` RPC for the admin Force Register panel |
 
 > Existing databases that already ran `0004_policies.sql` before this change: after
 > applying `0007`, re-run the updated `0004_policies.sql` — it is idempotent and
@@ -65,6 +67,34 @@ The next login for that account will force MFA setup before the Admin Console is
 - Approve applicants in Admin → People → Recruits: **Recruit to CIIE** (assigns a
   role, e.g. QR Code Scanner / `attendance_coordinator`) or **Now a member**
   (regular active member).
+- **Bulk Add Members** (Admin → People, super admin): upload an Excel/CSV sheet
+  (columns: Name, Id Number, Email, Department, Year, Mobile Number), review
+  every row before anything is created, then the `bulk-create-members` Edge
+  Function creates each login account with a random password (Student ID and
+  phone must be exactly 10 digits; duplicates by email/ID are rejected) and a
+  welcome email with name + email + password is sent automatically. Passwords
+  are shown on the results screen and downloadable as Excel — they are not
+  stored in plain text afterwards.
+- **Force Register** (Admin Controls, super/main admin): pick an event, tick the
+  members who are not registered yet, and register them in bulk — even after the
+  deadline or once seats/deadline gates would normally block it. Each forced
+  registration is a normal confirmed ticket with its own QR attendance code, so
+  scanning works exactly like a manual registration. Duplicate and seat checks
+  still apply; every batch is written to the audit log.
+
+## Validation rules
+
+- **Student ID and phone number are mandatory everywhere and must be exactly
+  10 digits** — Join CIIE, role registration (`/register/:slug`), event
+  registration, member profile edit, Add Member, AMTPS cards, and the bulk
+  importer (client-side and re-validated server-side).
+
+## SMTP rotation
+
+Emails rotate across every active Gmail SMTP account round-robin
+(mail #1 → account #1, mail #2 → account #2, … looping back after the last),
+tracked in `smtp_rotation_state`, so no single account sends everything.
+Failover to the remaining accounts still applies if one errors.
 
 ## Running
 

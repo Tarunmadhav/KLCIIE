@@ -1,6 +1,7 @@
 import type { CustomFieldDef } from '@/lib/types'
 import { Field, SelectInput, TextArea, TextInput } from '@/components/ui'
-import PhoneInput from '@/components/PhoneInput'
+import PhoneInput, { parsePhone } from '@/components/PhoneInput'
+import { isValidTenDigit } from '@/lib/utils'
 
 export function CustomFieldInputs({
   fields,
@@ -55,7 +56,14 @@ export function CustomFieldInputs({
 
 export function missingFields(fields: CustomFieldDef[], values: Record<string, string>): string | null {
   for (const f of fields) {
-    if (f.required && !(values[f.key] ?? '').trim()) {
+    if (!f.required) continue
+    if (f.key === 'phone') {
+      if (!isValidTenDigit(parsePhone(values[f.key] ?? '').number)) {
+        return `"${f.label}" is required and must be exactly 10 digits.`
+      }
+      continue
+    }
+    if (!(values[f.key] ?? '').trim()) {
       return `"${f.label}" is required.`
     }
   }

@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from '@/hooks/useAuth'
 import { BrandingProvider } from '@/hooks/useBranding'
 import { SettingsProvider } from '@/hooks/useSettings'
-import { RequireAdmin, RequireAuth, RequireCiiieMember, RequireSuperAdmin, MfaResetWatcher } from '@/components/guards'
+import { RequireAdmin, RequireAuth, RequireCiiieMember, RequireFaculty, RequireSuperAdmin, MfaResetWatcher } from '@/components/guards'
 import { AuthLayout, PublicLayout } from '@/components/Layouts'
 import OfflineIndicator from '@/components/OfflineIndicator'
 import { PageLoader } from '@/components/ui'
@@ -49,6 +49,9 @@ const RecruitLayout = lazy(() => import('@/pages/member/recruit/RecruitLayout'))
 const RecruitGd = lazy(() => import('@/pages/member/recruit/RecruitGd'))
 const RecruitInterview = lazy(() => import('@/pages/member/recruit/RecruitInterview'))
 const RecruitFinalSelection = lazy(() => import('@/pages/member/recruit/RecruitFinalSelection'))
+const FacultyLayout = lazy(() => import('@/pages/faculty/FacultyLayout'))
+const FacultyEvents = lazy(() => import('@/pages/faculty/FacultyEvents'))
+const FacultyForms = lazy(() => import('@/pages/faculty/FacultyForms'))
 
 const AdminLayout = lazy(() => import('@/pages/admin/AdminLayout'))
 const AdminDashboard = lazy(() => import('@/pages/admin/Dashboard'))
@@ -61,6 +64,8 @@ const PointRules = lazy(() => import('@/pages/admin/PointRules'))
 const PointsAdmin = lazy(() => import('@/pages/admin/Points'))
 const MembersAdmin = lazy(() => import('@/pages/admin/MembersAdmin'))
 const MembersAdd = lazy(() => import('@/pages/admin/MembersAdd'))
+const BulkAddMembers = lazy(() => import('@/pages/admin/BulkAddMembers'))
+const ForceRegister = lazy(() => import('@/pages/admin/ForceRegister'))
 const AmtpsAdmin = lazy(() => import('@/pages/admin/AmtpsAdmin'))
 const MemberDetailAdmin = lazy(() => import('@/pages/admin/MemberDetailAdmin'))
 const AttendanceScanner = lazy(() => import('@/pages/admin/AttendanceScanner'))
@@ -87,6 +92,10 @@ const RejectPermissionsAdmin = lazy(() => import('@/pages/admin/recruit/RejectPe
 const SmtpSettingsAdmin = lazy(() => import('@/pages/admin/recruit/SmtpSettings'))
 const SendMailAdmin = lazy(() => import('@/pages/admin/SendMail'))
 const StartupsAdmin = lazy(() => import('@/pages/admin/StartupsAdmin'))
+const FacultyEventsAdmin = lazy(() => import('@/pages/admin/FacultyEventsAdmin'))
+const FacultyFormsAdmin = lazy(() => import('@/pages/admin/faculty/FacultyFormsAdmin'))
+const FacultyFormEdit = lazy(() => import('@/pages/admin/faculty/FacultyFormEdit'))
+const FacultyFormSubmissions = lazy(() => import('@/pages/admin/faculty/FacultyFormSubmissions'))
 
 export default function App() {
   return (
@@ -105,7 +114,7 @@ export default function App() {
               <Route path="/upcoming-events" element={<UpcomingEvents />} />
               <Route path="/events" element={<EventsList />} />
               <Route path="/events/:id" element={<EventDetail />} />
-              <Route path="/events/:id/register" element={<EventRegister />} />
+              <Route path="/events/:id/register" element={<RequireAuth><EventRegister /></RequireAuth>} />
               <Route path="/register/success/:registrationId" element={<RegisterSuccess />} />
               <Route path="/members" element={<MembersList />} />
               <Route path="/members/:id" element={<MemberPublic />} />
@@ -134,6 +143,12 @@ export default function App() {
                 </Route>
                 <Route path="/leaderboard" element={<Navigate to="/dashboard/leaderboard" replace />} />
                 <Route path="/recruit/success" element={<RecruitSuccess />} />
+                <Route path="/faculty" element={<RequireFaculty><FacultyLayout /></RequireFaculty>}>
+                  <Route index element={<FacultyEvents />} />
+                  <Route path="forms" element={<FacultyForms />} />
+                  <Route path="qr" element={<MemberQrPage />} />
+                  <Route path="profile" element={<ProfileEdit />} />
+                </Route>
               </Route>
             </Route>
 
@@ -142,6 +157,7 @@ export default function App() {
               <Route path="/signup" element={<Signup />} />
               <Route path="/register" element={<Register />} />
               <Route path="/register/:slug" element={<RoleRegister />} />
+              <Route path="/register-faculty" element={<RoleRegister slug="faculty" hideStudentId />} />
               <Route path="/register/role/success" element={<RoleRegisterSuccess />} />
               <Route path="/verify-application" element={<VerifyApplication />} />
             </Route>
@@ -156,12 +172,21 @@ export default function App() {
                 <Route path="events/new" element={<EventEdit />} />
                 <Route path="events/:id" element={<EventDetailAdmin />} />
                 <Route path="events/:id/edit" element={<EventEdit />} />
+                <Route path="faculty-events" element={<FacultyEventsAdmin />} />
+                <Route path="faculty-events/new" element={<EventEdit audience="faculty" />} />
+                <Route path="faculty-events/:id/edit" element={<EventEdit audience="faculty" />} />
+                <Route path="faculty-forms" element={<FacultyFormsAdmin />} />
+                <Route path="faculty-forms/new" element={<FacultyFormEdit />} />
+                <Route path="faculty-forms/submissions" element={<FacultyFormSubmissions />} />
+                <Route path="faculty-forms/:id/edit" element={<FacultyFormEdit />} />
                 <Route path="events/:id/team" element={<EventTeam />} />
                 <Route path="roles" element={<EventRoles />} />
                 <Route path="point-rules" element={<PointRules />} />
                 <Route path="points" element={<RequireSuperAdmin><PointsAdmin /></RequireSuperAdmin>} />
                 <Route path="members" element={<MembersAdmin />} />
                 <Route path="members/add" element={<MembersAdd />} />
+                <Route path="members/bulk-add" element={<RequireSuperAdmin><BulkAddMembers /></RequireSuperAdmin>} />
+                <Route path="force-register" element={<RequireSuperAdmin><ForceRegister /></RequireSuperAdmin>} />
                 <Route path="amtps" element={<RequireSuperAdmin><AmtpsAdmin /></RequireSuperAdmin>} />
                 <Route path="members/:id" element={<MemberDetailAdmin />} />
                 <Route path="recruits" element={<RecruitsAdmin />} />

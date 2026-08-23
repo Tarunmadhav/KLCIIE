@@ -45,7 +45,7 @@ export async function fetchPublishedEvents({
   upcomingOnly = false,
   category,
 }: { status?: 'published' | 'completed'; upcomingOnly?: boolean; category?: string } = {}): Promise<Event[]> {
-  let query = supabase.from('events').select('*').eq('status', status)
+  let query = supabase.from('events').select('*').eq('status', status).neq('audience', 'faculty')
   if (category && category !== 'all') query = query.eq('category', category)
   if (upcomingOnly) query = query.gte('start_date', new Date().toISOString().slice(0, 10))
   query = query.order('start_date', { ascending: true })

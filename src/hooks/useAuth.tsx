@@ -10,7 +10,7 @@ import {
 } from 'react'
 import type { Factor, User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
-import type { Profile } from '@/lib/types'
+import type { Profile, Role } from '@/lib/types'
 import { isAdminRole } from '@/lib/types'
 import { errorMessage } from '@/lib/utils'
 
@@ -28,6 +28,7 @@ export interface SignInResult {
   mfaVerifyRequired: boolean
   allowed: boolean
   isAdmin: boolean
+  role?: Role | null
 }
 
 interface AuthContextValue {
@@ -241,7 +242,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const superAdmin = prof?.role === 'super_admin'
 
       if (!admin) {
-        return { ...base, allowed: true, isAdmin: admin }
+        return { ...base, allowed: true, isAdmin: admin, role: prof?.role ?? null }
       }
       if (superAdmin) {
         if (prof!.mfa_setup_required || !mfaState.hasVerifiedFactor) {

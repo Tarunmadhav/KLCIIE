@@ -2,13 +2,11 @@ import { useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ShieldCheck } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
-import { useSettings } from '@/hooks/useSettings'
 import { Button, Field, Spinner, TextInput } from '@/components/ui'
 import { errorMessage } from '@/lib/utils'
 
 export default function Login() {
   const { signIn } = useAuth()
-  const settings = useSettings()
   const navigate = useNavigate()
   const location = useLocation()
   const [email, setEmail] = useState('')
@@ -39,8 +37,9 @@ export default function Login() {
         setSuccess('Logged in successfully — opening the admin console…')
         setTimeout(() => navigate(from?.startsWith('/admin') ? from : '/admin', { replace: true }), 600)
       } else {
+        const home = res.role === 'faculty' ? '/faculty' : '/dashboard'
         setSuccess('Logged in successfully — opening your dashboard…')
-        setTimeout(() => navigate(from ?? '/dashboard', { replace: true }), 600)
+        setTimeout(() => navigate(from ?? home, { replace: true }), 600)
       }
     } catch (err) {
       setError(errorMessage(err))
@@ -90,16 +89,10 @@ export default function Login() {
       </form>
 
       <p className="mt-6 text-center text-sm text-slate-500">
-        {settings.allow_public_signup ? (
-          <>
-            New to CIIE?{' '}
-            <Link to="/signup" className="font-semibold text-primary-600 hover:underline">
-              Join CIIE
-            </Link>
-          </>
-        ) : (
-          'CIIE recruitment is currently closed.'
-        )}
+        No account?{' '}
+        <Link to="/signup" className="font-semibold text-primary-600 hover:underline">
+          Register / Sign up
+        </Link>
       </p>
     </div>
   )

@@ -8,7 +8,7 @@ import { useSettings } from '@/hooks/useSettings'
 import { formatWait, useEmailCooldown, type EmailSendStatus } from '@/hooks/useEmailCooldown'
 import { supabase } from '@/lib/supabase'
 import type { CustomFieldDef } from '@/lib/types'
-import { emailInvokeMessage, errorMessage } from '@/lib/utils'
+import { emailInvokeMessage, errorMessage, isValidTenDigit } from '@/lib/utils'
 
 const DEFAULT_EXTRA: CustomFieldDef[] = [
   { key: 'phone', label: 'Phone number', type: 'text', required: true },
@@ -16,8 +16,9 @@ const DEFAULT_EXTRA: CustomFieldDef[] = [
   { key: 'year_of_study', label: 'Year of study', type: 'select', required: true, options: ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year'] },
 ]
 
-export default function RoleRegister() {
-  const { slug } = useParams<{ slug: string }>()
+export default function RoleRegister({ slug: slugProp, hideStudentId = false }: { slug?: string; hideStudentId?: boolean } = {}) {
+  const params = useParams<{ slug: string }>()
+  const slug = slugProp ?? params.slug
   const { signUp, refreshProfile } = useAuth()
   const settings = useSettings()
   const navigate = useNavigate()
@@ -128,9 +129,15 @@ export default function RoleRegister() {
         return
       }
     }
-    if (!fullName.trim() || !studentId.trim()) {
-      setError('Please enter your full name and student ID.')
+    if (!fullName.trim()) {
+      setError('Please enter your full name.')
       return
+    }
+    if (!hideStudentId) {
+      if (!isValidTenDigit(studentId)) {
+        setError('Student ID is required and must be exactly 10 digits.')
+        return
+      }
     }
 
     setBusy(true)
@@ -155,8 +162,8 @@ export default function RoleRegister() {
         role: validatedInfo.role,
         role_slug: slug ?? '',
         registration_token: validatedInfo.token,
-        student_id: studentId.trim(),
       }
+      if (!hideStudentId) meta.student_id = studentId.trim()
       for (const f of fields) {
         meta[f.key] = (values[f.key] ?? '').trim()
       }
@@ -224,8 +231,8 @@ export default function RoleRegister() {
       role: validated.role,
       role_slug: slug ?? '',
       registration_token: validated.token,
-      student_id: studentId.trim(),
     }
+    if (!hideStudentId) meta.student_id = studentId.trim()
     for (const f of fields) {
       meta[f.key] = (values[f.key] ?? '').trim()
     }
@@ -319,13 +326,6 @@ export default function RoleRegister() {
               Edit details
             </button>
           </div>
-
-          <p className="mt-6 text-center text-sm text-slate-500">
-            Want to apply the normal way?{' '}
-            <Link to="/signup" className="font-semibold text-primary-600 hover:underline">
-              Join CIIE
-            </Link>
-          </p>
         </div>
       </div>
     )
@@ -355,9 +355,11 @@ export default function RoleRegister() {
             <Field label="Full name *">
               <TextInput required value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Rahul Kumar" />
             </Field>
-            <Field label="Student ID *">
-              <TextInput required inputMode="numeric" value={studentId} onChange={(e) => setStudentId(e.target.value.replace(/\D/g, '').slice(0, 20))} placeholder="University roll number" />
-            </Field>
+            {!hideStudentId && (
+              <Field label="Student ID *" hint="Exactly 10 digits">
+                <TextInput required inputMode="numeric" maxLength={10} value={studentId} onChange={(e) => setStudentId(e.target.value.replace(/\D/g, '').slice(0, 10))} placeholder="e.g. 2300123456" />
+              </Field>
+            )}
             <Field label="Email *" hint={settings.signup_domain_restriction ? 'Only KL University email addresses are accepted.' : undefined}>
               <TextInput type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={settings.signup_domain_restriction ? 'you@kluniversity.in' : 'you@example.com'} />
             </Field>
@@ -417,13 +419,6 @@ export default function RoleRegister() {
             {busy ? <Spinner className="border-white/40 border-t-white" /> : settings.signup_email_otp ? <>Send verification code</> : <>Create my account</>}
           </Button>
         </form>
-
-        <p className="mt-6 text-center text-sm text-slate-500">
-          Want to apply the normal way?{' '}
-          <Link to="/signup" className="font-semibold text-primary-600 hover:underline">
-            Join CIIE
-          </Link>
-        </p>
       </div>
     </div>
   )

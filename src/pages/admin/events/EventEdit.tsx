@@ -30,7 +30,7 @@ const toLocalInputValue = (iso?: string | null): string => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-export default function EventEdit() {
+export default function EventEdit({ audience: defaultAudience = 'members' }: { audience?: 'members' | 'faculty' }) {
   const { id } = useParams<{ id?: string }>()
   const navigate = useNavigate()
   const isEdit = !!id
@@ -38,6 +38,7 @@ export default function EventEdit() {
   const [error, setError] = useState('')
   const [bannerUrl, setBannerUrl] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [windows, setWindows] = useState<Array<{ round: number; starts_at: string; ends_at: string }>>([])
   const [form, setForm] = useState({
     title: '',
     slug: '',
@@ -52,11 +53,13 @@ export default function EventEdit() {
     registration_deadline: '',
     seats: '100',
     attendance_rounds: '1',
+    audience: defaultAudience as 'members' | 'faculty',
     status: 'draft' as 'draft' | 'published' | 'completed' | 'cancelled',
     registration_enabled: true,
     show_team_public: true,
     coordinator_note: '',
   })
+  const roundCount = Math.max(1, Math.min(30, Number(form.attendance_rounds) || 1))
   const [fields, setFields] = useState<FormField[]>([EMPTY_FIELD])
 
   useEffect(() => {
@@ -85,6 +88,7 @@ export default function EventEdit() {
           registration_deadline: e.registration_deadline ? toLocalInputValue(String(e.registration_deadline)) : '',
           seats: String(e.seats ?? '100'),
           attendance_rounds: Number.isFinite(rounds) && rounds >= 1 ? String(rounds) : '1',
+          audience: ((e.audience as 'members' | 'faculty') ?? defaultAudience),
           status: (e.status as 'draft' | 'published' | 'completed' | 'cancelled') ?? 'draft',
           registration_enabled: Boolean(e.registration_enabled),
           show_team_public: Boolean(e.show_team_public),
@@ -93,6 +97,23 @@ export default function EventEdit() {
         setFields((e.form_fields as FormField[])?.length ? (e.form_fields as FormField[]).map((f) => ({ ...f, optionsRaw: (f.options ?? []).join(', ') })) : [EMPTY_FIELD])
         setBannerUrl(String(e.banner_url ?? '') || null)
       })
+    if (isEdit && id) {
+      supabase
+        .from('event_round_windows')
+        .select('round, starts_at, ends_at')
+        .eq('event_id', id)
+        .order('round')
+        .then(({ data }) => {
+          if (!active) return
+          setWindows(
+            ((data ?? []) as Array<{ round: number; starts_at: string; ends_at: string }>).map((w) => ({
+              round: w.round,
+              starts_at: toLocalInputValue(w.starts_at),
+              ends_at: toLocalInputValue(w.ends_at),
+            })),
+          )
+        })
+    }
     return () => {
       active = false
     }
@@ -132,6 +153,27 @@ export default function EventEdit() {
       return
     }
 
+    const windowRows = windows
+      .filter((w, i) => i < roundCount && w.starts_at && w.ends_at)
+      .map((w) => ({
+        event_id: id ?? null,
+        round: w.round,
+        starts_at: new Date(w.starts_at).toISOString(),
+        ends_at: new Date(w.ends_at).toISOString(),
+      }))
+    if (form.audience === 'faculty' && windowRows.some((w) => new Date(w.ends_at) <= new Date(w.starts_at))) {
+      setError('Every round window must close after it opens.')
+      setBusy(false)
+      return
+    }
+    const partialWindows = form.audience === 'faculty'
+      && Array.from({ length: roundCount }, (_, i) => windows[i]).some((w) => (w?.starts_at ? !w.ends_at : !!w.ends_at))
+    if (partialWindows) {
+      setError('Each round needs both an open and a close time.')
+      setBusy(false)
+      return
+    }
+
     const payload = {
       title: form.title,
       slug: form.slug || slugify(form.title) + (isEdit ? '' : '-' + Date.now().toString(36)),
@@ -147,6 +189,7 @@ export default function EventEdit() {
       registration_deadline: form.registration_deadline ? new Date(form.registration_deadline).toISOString() : null,
       seats: Number(form.seats) || 100,
       attendance_rounds: Math.max(1, Math.min(30, Number(form.attendance_rounds) || 1)),
+      audience: form.audience,
       status: form.status,
       registration_enabled: form.registration_enabled,
       show_team_public: form.show_team_public,
@@ -176,20 +219,40 @@ export default function EventEdit() {
       setError(errorMessage(err))
       return
     }
+
+    // Persist per-round attendance windows (faculty events only).
+    if (newId) {
+      await supabase.from('event_round_windows').delete().eq('event_id', newId)
+      if (form.audience === 'faculty' && windowRows.length > 0) {
+        const { error: wErr } = await supabase
+          .from('event_round_windows')
+          .insert(windowRows.map((w) => ({ ...w, event_id: newId })))
+        if (wErr) {
+          setError(errorMessage(wErr))
+          return
+        }
+      }
+    }
+
     await supabase.rpc('log_admin_event', {
       p_action: isEdit ? 'Event Updated' : 'Event Created',
       p_entity_type: 'event',
       p_entity_id: newId,
     })
-    navigate(isEdit ? `/admin/events/${newId}` : `/admin/events/${newId}`)
+    navigate(form.audience === 'faculty' ? '/admin/faculty-events' : `/admin/events/${newId}`)
   }
 
   return (
     <div className="max-w-4xl">
-      <Link to="/admin/events" className="text-sm font-medium text-primary-600 hover:underline">
-        ← All events
+      <Link
+        to={form.audience === 'faculty' ? '/admin/faculty-events' : '/admin/events'}
+        className="text-sm font-medium text-primary-600 hover:underline"
+      >
+        ← {form.audience === 'faculty' ? 'Faculty events' : 'All events'}
       </Link>
-      <h1 className="mt-2 text-2xl font-extrabold text-slate-900">{isEdit ? 'Edit Event' : 'Create Event'}</h1>
+      <h1 className="mt-2 text-2xl font-extrabold text-slate-900">
+        {isEdit ? 'Edit Event' : form.audience === 'faculty' ? 'Create Faculty Event' : 'Create Event'}
+      </h1>
 
       <form onSubmit={submit} className="mt-6 space-y-6">
         <section className="card space-y-4 p-6">
@@ -242,6 +305,50 @@ export default function EventEdit() {
             <TextInput value={form.coordinator_note} onChange={(e) => setForm({ ...form, coordinator_note: e.target.value })} />
           </Field>
         </section>
+
+        {form.audience === 'faculty' && (
+          <section className="card space-y-4 p-6">
+            <h2 className="text-base font-bold text-slate-900">Attendance round windows</h2>
+            <p className="text-xs text-slate-400">
+              For each of the {roundCount} attendance round{roundCount === 1 ? '' : 's'}, set exactly when attendance is taken.
+              Faculty can open their QR only during these windows — outside them the QR stays locked and scans are rejected.
+              Leave a row empty to keep that round closed.
+            </p>
+            {Array.from({ length: roundCount }, (_, i) => (
+              <div key={i} className="grid gap-3 rounded-xl border border-slate-200 p-4 sm:grid-cols-[4rem_1fr_1fr]">
+                <div className="flex items-center justify-center rounded-lg bg-primary-50 text-sm font-bold text-primary-700">
+                  R{i + 1}
+                </div>
+                <Field label="Opens">
+                  <TextInput
+                    type="datetime-local"
+                    value={windows[i]?.starts_at ?? ''}
+                    onChange={(e) =>
+                      setWindows((prev) => {
+                        const next = [...prev]
+                        next[i] = { round: i + 1, starts_at: e.target.value, ends_at: next[i]?.ends_at ?? '' }
+                        return next
+                      })
+                    }
+                  />
+                </Field>
+                <Field label="Closes">
+                  <TextInput
+                    type="datetime-local"
+                    value={windows[i]?.ends_at ?? ''}
+                    onChange={(e) =>
+                      setWindows((prev) => {
+                        const next = [...prev]
+                        next[i] = { round: i + 1, starts_at: next[i]?.starts_at ?? '', ends_at: e.target.value }
+                        return next
+                      })
+                    }
+                  />
+                </Field>
+              </div>
+            ))}
+          </section>
+        )}
 
         <section className="card space-y-4 p-6">
           <h2 className="text-base font-bold text-slate-900">Banner</h2>
@@ -307,6 +414,12 @@ export default function EventEdit() {
         <section className="card space-y-4 p-6">
           <h2 className="text-base font-bold text-slate-900">Publishing</h2>
           <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Audience" hint={form.audience === 'faculty' ? 'Faculty only — every Faculty member is registered automatically, no registration needed.' : 'Shown on the public site; members register normally.'}>
+              <SelectInput value={form.audience} onChange={(e) => setForm({ ...form, audience: e.target.value as typeof form.audience })}>
+                <option value="members">Members (public)</option>
+                <option value="faculty">Faculty only</option>
+              </SelectInput>
+            </Field>
             <Field label="Status">
               <SelectInput value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as typeof form.status })}>
                 <option value="draft">Draft</option>
@@ -334,7 +447,10 @@ export default function EventEdit() {
           <Button type="submit" disabled={busy}>
             <Save size={16} /> {isEdit ? 'Save changes' : 'Create event'}
           </Button>
-          <Link to="/admin/events" className="btn-secondary">
+          <Link
+            to={form.audience === 'faculty' ? '/admin/faculty-events' : '/admin/events'}
+            className="btn-secondary"
+          >
             Cancel
           </Link>
         </div>

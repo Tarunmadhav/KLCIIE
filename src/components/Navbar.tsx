@@ -57,7 +57,7 @@ export default function Navbar() {
           ))}
           {user && (
             <NavLink
-              to="/dashboard"
+              to={profile?.role === 'faculty' ? '/faculty' : '/dashboard'}
               className={({ isActive }) =>
                 cn(
                   'rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900',
@@ -186,7 +186,7 @@ export default function Navbar() {
             ))}
             {user && (
               <Link
-                to="/dashboard"
+                to={profile?.role === 'faculty' ? '/faculty' : '/dashboard'}
                 onClick={() => setOpen(false)}
                 className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
               >

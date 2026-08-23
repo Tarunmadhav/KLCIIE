@@ -110,6 +110,21 @@ export function moneyPoints(points: number): string {
   return points > 0 ? `+${points}` : `${points}`
 }
 
+// ---------------------------------------------------------------------------
+// Student ID / phone validation — both are mandatory and must be exactly
+// 10 digits everywhere in the app (forms, Excel import, bulk import).
+// ---------------------------------------------------------------------------
+
+/** Strips everything except digits ("+91 98765 43210" -> "91876543210" ...). */
+export function digitsOnly(value: string | null | undefined): string {
+  return (value ?? '').replace(/\D/g, '')
+}
+
+/** Exactly 10 digits (no more, no less) after stripping separators. */
+export function isValidTenDigit(value: string | null | undefined): boolean {
+  return /^\d{10}$/.test(digitsOnly(value))
+}
+
 export function errorMessage(err: unknown): string {
   if (err && typeof err === 'object' && 'message' in err) {
     return String((err as { message: unknown }).message)

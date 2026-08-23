@@ -4,7 +4,7 @@ import { Avatar, Button, Field, SelectInput, TextArea, TextInput, Toggle } from 
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
 import type { PrivacySettings } from '@/lib/types'
-import { errorMessage } from '@/lib/utils'
+import { digitsOnly, errorMessage, isValidTenDigit } from '@/lib/utils'
 
 export default function ProfileEdit() {
   const { profile, refreshProfile } = useAuth()
@@ -92,9 +92,13 @@ export default function ProfileEdit() {
 
   const save = async (e: FormEvent) => {
     e.preventDefault()
+    setError('')
+    if (!isValidTenDigit(form.phone)) {
+      setError('Phone number is required and must be exactly 10 digits.')
+      return
+    }
     setBusy(true)
     setNotice('')
-    setError('')
     const skills = form.skills
       .split(',')
       .map((s) => s.trim())
@@ -104,7 +108,7 @@ export default function ProfileEdit() {
       .from('profiles')
       .update({
         full_name: form.full_name,
-        phone: form.phone || null,
+        phone: digitsOnly(form.phone),
         department: form.department || null,
         year_of_study: form.year_of_study || null,
         academic_year: form.academic_year || null,
@@ -199,8 +203,8 @@ export default function ProfileEdit() {
             <Field label="Full name">
               <TextInput value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} />
             </Field>
-            <Field label="Phone">
-              <TextInput value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+91 ..." />
+            <Field label="Phone *" hint="Exactly 10 digits">
+              <TextInput required inputMode="numeric" maxLength={10} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })} placeholder="e.g. 9876543210" />
             </Field>
             <Field label="Department">
               <TextInput value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} placeholder="CSE" />
