@@ -297,6 +297,7 @@ export default function BulkAddMembers() {
         Year: r.yearOfStudy,
         Phone: r.phone,
         EmailStatus: r.mailStatus === 'sent' ? 'sent' : r.mailStatus === 'failed' ? 'failed' : '',
+        'Mail Used': r.mailStatus === 'sent' ? r.email : 'Not sent',
       })),
       'Credentials',
     )
@@ -522,7 +523,8 @@ export default function BulkAddMembers() {
                     <th className="px-3 py-2">Email</th>
                     <th className="px-3 py-2">Password</th>
                     <th className="px-3 py-2">Account</th>
-                    <th className="px-3 py-2">Email</th>
+                    <th className="px-3 py-2">Mail used</th>
+                    <th className="px-3 py-2">Mail</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -543,6 +545,9 @@ export default function BulkAddMembers() {
                             <XCircle size={12} /> {r.resultError}
                           </Badge>
                         )}
+                      </td>
+                      <td className="px-3 py-2 font-mono text-xs text-green-700">
+                        {r.status === 'created' && r.mailStatus === 'sent' ? r.email : '—'}
                       </td>
                       <td className="px-3 py-2">
                         {r.status !== 'created' ? (
