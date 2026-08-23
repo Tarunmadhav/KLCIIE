@@ -290,6 +290,19 @@ Deno.serve(async (req: Request) => {
       purpose = payload.purpose
     }
 
+    // Password reset is only for existing accounts. Check auth.users before
+    // creating an OTP or applying the email-send throttle so unknown addresses
+    // never receive (or leave behind) a reset code.
+    if (purpose === "password-reset") {
+      const { data: account, error: accountError } = await admin.auth.admin.getUserByEmail(to)
+      if (accountError || !account?.user) {
+        return Response.json(
+          { error: "No account has been registered with this email address. Please register and try again." },
+          { status: 404, headers: corsHeaders },
+        )
+      }
+    }
+
     const code = random6()
     const hash = await sha256Hex(code.toUpperCase())
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString()

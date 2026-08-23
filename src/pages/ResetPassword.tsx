@@ -3,7 +3,7 @@ import { KeyRound, MailCheck, ShieldCheck } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button, Field, Spinner, TextInput } from '@/components/ui'
 import { supabase } from '@/lib/supabase'
-import { errorMessage } from '@/lib/utils'
+import { emailInvokeMessage } from '@/lib/utils'
 
 export default function ResetPassword() {
   const [step, setStep] = useState<'email' | 'otp' | 'done'>('email')
@@ -32,7 +32,7 @@ export default function ResetPassword() {
         body: { kind: 'registration-otp', purpose: 'password-reset', to_email: email.trim(), full_name: '' },
       })
       if (err) {
-        setError(errorMessage(err))
+        setError(await emailInvokeMessage(err))
         return
       }
       setNotice(`A 6-digit reset code has been emailed to ${email.trim()}. It expires in 15 minutes.`)
@@ -85,7 +85,7 @@ export default function ResetPassword() {
     })
     setBusy(false)
     if (err) {
-      setError(errorMessage(err))
+      setError(await emailInvokeMessage(err))
       return
     }
     setNotice('A new code has been emailed to you.')
