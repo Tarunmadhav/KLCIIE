@@ -79,6 +79,11 @@ export default function Login() {
             onChange={(e) => setPassword(e.target.value)}
           />
         </Field>
+        <div className="flex justify-end">
+          <Link to="/reset-password" className="text-xs font-medium text-primary-600 hover:underline">
+            Forgot password?
+          </Link>
+        </div>
 
         {success && <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">{success}</p>}
         {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}

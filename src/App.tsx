@@ -33,6 +33,7 @@ const Register = lazyPage(() => import('@/pages/Register'))
 const RoleRegister = lazyPage(() => import('@/pages/RoleRegister'))
 const RoleRegisterSuccess = lazyPage(() => import('@/pages/RoleRegisterSuccess'))
 const VerifyApplication = lazyPage(() => import('@/pages/VerifyApplication'))
+const ResetPassword = lazyPage(() => import('@/pages/ResetPassword'))
 const NotFound = lazyPage(() => import('@/pages/NotFound'))
 
 const MfaSetup = lazyPage(() => import('@/pages/auth/MfaSetup'))
@@ -157,6 +158,7 @@ export default function App() {
 
             <Route element={<AuthLayout />}>
               <Route path="/login" element={<Login />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/signup" element={<Signup />} />
               <Route path="/register" element={<Register />} />
               <Route path="/register/:slug" element={<RoleRegister />} />
