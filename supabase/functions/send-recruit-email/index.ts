@@ -76,6 +76,24 @@ async function sha256Hex(value: string): Promise<string> {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("")
 }
 
+// The Supabase Admin API does not provide a getUserByEmail method in every
+// supabase-js version supported by Edge Functions, so search the paginated
+// admin user list instead.
+async function findAuthUserByEmail(
+  admin: ReturnType<typeof createClient>,
+  email: string,
+): Promise<{ found: boolean; error: string | null }> {
+  const perPage = 1000
+  for (let page = 1; ; page += 1) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage })
+    if (error) return { found: false, error: error.message }
+    if (data.users.some((user) => (user.email ?? "").toLowerCase() === email)) {
+      return { found: true, error: null }
+    }
+    if (data.users.length < perPage) return { found: false, error: null }
+  }
+}
+
 function random6(): string {
   return String(Math.floor(Math.random() * 1_000_000)).padStart(6, "0")
 }
@@ -294,8 +312,14 @@ Deno.serve(async (req: Request) => {
     // creating an OTP or applying the email-send throttle so unknown addresses
     // never receive (or leave behind) a reset code.
     if (purpose === "password-reset") {
-      const { data: account, error: accountError } = await admin.auth.admin.getUserByEmail(to)
-      if (accountError || !account?.user) {
+      const account = await findAuthUserByEmail(admin, to)
+      if (account.error) {
+        return Response.json(
+          { error: "We couldn't check this account right now. Please try again in a few minutes." },
+          { status: 500, headers: corsHeaders },
+        )
+      }
+      if (!account.found) {
         return Response.json(
           { error: "No account has been registered with this email address. Please register and try again." },
           { status: 404, headers: corsHeaders },
