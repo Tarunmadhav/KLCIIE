@@ -51,12 +51,13 @@ export interface AmtpsMember {
   year_of_study: string | null
   position: string | null
   domain: string | null
-  about: string | null
+  about?: string | null
   avatar_url: string | null
   telegram: string | null
   github: string | null
   linkedin: string | null
   contact_email: string | null
+  display_order?: number
   created_at: string
   updated_at: string
 }

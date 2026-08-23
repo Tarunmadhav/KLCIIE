@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabase'
 import { socialHref } from '@/lib/utils'
 import type { AmtpsMember } from '@/lib/types'
 
-const FETCH_FIELDS = 'id, full_name, email, student_id, department, year_of_study, position, domain, about, avatar_url, telegram, github, linkedin, contact_email, created_at, updated_at'
+const FETCH_FIELDS = 'id, full_name, email, student_id, department, year_of_study, position, domain, about, avatar_url, telegram, github, linkedin, contact_email, display_order, created_at, updated_at'
 
 export default function AmtpsShowcase({ query = '' }: { query?: string }) {
   const [rows, setRows] = useState<AmtpsMember[]>([])
@@ -23,7 +23,7 @@ export default function AmtpsShowcase({ query = '' }: { query?: string }) {
       const { data, error } = await supabase
         .from('amtps_members')
         .select(FETCH_FIELDS)
-        .order('full_name')
+        .order('display_order', { ascending: true })
         .order('created_at', { ascending: true })
       if (active) {
         if (!error) setRows((data ?? []) as AmtpsMember[])

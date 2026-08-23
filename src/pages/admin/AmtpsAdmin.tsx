@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ContactRound, Pencil, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, ContactRound, Pencil, Trash2 } from 'lucide-react'
 import { Avatar, Button, EmptyState, PageHeader, PageLoader } from '@/components/ui'
 import AmtpsMemberForm from '@/components/amtps/AmtpsMemberForm'
 import { useSettings } from '@/hooks/useSettings'
@@ -8,13 +8,13 @@ import { supabase } from '@/lib/supabase'
 import type { AmtpsMember } from '@/lib/types'
 import { errorMessage } from '@/lib/utils'
 
-const FETCH_FIELDS = 'id, full_name, email, student_id, department, year_of_study, position, domain, avatar_url, telegram, github, linkedin, contact_email, created_at, updated_at'
+const FETCH_FIELDS = 'id, full_name, email, student_id, department, year_of_study, position, domain, avatar_url, telegram, github, linkedin, contact_email, display_order, created_at, updated_at'
 
 async function fetchRows(): Promise<AmtpsMember[]> {
   const { data, error } = await supabase
     .from('amtps_members')
     .select(FETCH_FIELDS)
-    .order('full_name')
+    .order('display_order', { ascending: true })
     .order('created_at', { ascending: true })
   if (error) throw error
   return (data ?? []) as AmtpsMember[]
@@ -45,8 +45,11 @@ export default function AmtpsAdmin() {
 
   useEffect(() => {
     let active = true
-    load().catch(() => {
-      if (active) setLoading(false)
+    load().catch((e) => {
+      if (active) {
+        setError(errorMessage(e))
+        setLoading(false)
+      }
     })
     return () => {
       active = false
@@ -84,6 +87,30 @@ export default function AmtpsAdmin() {
     }
     setMode(next)
     if (!next) navigate('/amtps')
+  }
+
+  // Move a card up/down in the public lineup and persist the swap.
+  const move = async (index: number, dir: -1 | 1) => {
+    const target = index + dir
+    if (target < 0 || target >= rows.length) return
+    setError('')
+    const a = rows[index]
+    const b = rows[target]
+    const orderA = b.display_order ?? target
+    const orderB = a.display_order ?? index
+    setRows((prev) => {
+      const next = [...prev]
+      ;[next[index], next[target]] = [next[target], next[index]]
+      return next
+    })
+    const [errA, errB] = await Promise.all([
+      supabase.from('amtps_members').update({ display_order: orderA }).eq('id', a.id).then((r) => r.error),
+      supabase.from('amtps_members').update({ display_order: orderB }).eq('id', b.id).then((r) => r.error),
+    ])
+    if (errA || errB) {
+      setError(errorMessage(errA ?? errB))
+      await load()
+    }
   }
 
   if (loading) return <PageLoader />
@@ -136,13 +163,13 @@ export default function AmtpsAdmin() {
 
       <section>
         <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-slate-400">
-          Added members ({rows.length})
+          Added members ({rows.length}) — use ↑ / ↓ to set the display order on the Members page
         </h2>
         {rows.length === 0 ? (
           <EmptyState icon={<ContactRound size={40} />} title="No AMTPS members yet" subtitle="Add your first team card above." />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {rows.map((m) => (
+            {rows.map((m, i) => (
               <div key={m.id} className="card flex items-center gap-3 p-3">
                 <Avatar name={m.full_name || 'AMTPS'} src={m.avatar_url} className="h-12 w-12 shrink-0" />
                 <div className="min-w-0 flex-1">
@@ -150,6 +177,25 @@ export default function AmtpsAdmin() {
                   <p className="truncate text-xs text-slate-500">
                     {[m.student_id, m.position].filter(Boolean).join(' • ') || 'No details yet'}
                   </p>
+                </div>
+                <div className="flex shrink-0 flex-col items-center gap-0.5">
+                  <button
+                    className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-primary-600 disabled:opacity-30"
+                    title="Move up — appears earlier on the Members page"
+                    disabled={i === 0}
+                    onClick={() => void move(i, -1)}
+                  >
+                    <ArrowUp size={14} />
+                  </button>
+                  <span className="text-[10px] font-bold text-slate-300">{i + 1}</span>
+                  <button
+                    className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-primary-600 disabled:opacity-30"
+                    title="Move down — appears later on the Members page"
+                    disabled={i === rows.length - 1}
+                    onClick={() => void move(i, 1)}
+                  >
+                    <ArrowDown size={14} />
+                  </button>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
                   <button
