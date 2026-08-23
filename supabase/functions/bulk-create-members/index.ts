@@ -168,20 +168,20 @@ Deno.serve(async (req: Request) => {
   }
 
   // Existing accounts for duplicate checks (club scale — one read is fine).
-  const seenEmails = new Set<string>()
-  const seenStudentIds = new Set<string>()
+  const seenEmails = new Map<string, string>()
+  const seenStudentIds = new Map<string, string>()
   {
     let from = 0
     for (;;) {
       const { data, error } = await admin
         .from("profiles")
-        .select("email, student_id")
+        .select("email, student_id, full_name")
         .range(from, from + 4999)
       if (error) break
       const rows = data ?? []
       for (const r of rows) {
-        if (r.email) seenEmails.add(String(r.email).trim().toLowerCase())
-        if (r.student_id) seenStudentIds.add(digitsOnly(r.student_id))
+        if (r.email) seenEmails.set(String(r.email).trim().toLowerCase(), String(r.full_name ?? "an existing account"))
+        if (r.student_id) seenStudentIds.set(digitsOnly(r.student_id), String(r.full_name ?? "an existing account"))
       }
       if (rows.length < 5000) break
       from += 5000
@@ -228,8 +228,10 @@ Deno.serve(async (req: Request) => {
 
     if (prepared.some((p) => p.email === email)) return fail("Duplicate email within the uploaded sheet.")
     if (prepared.some((p) => p.studentId === studentId)) return fail("Duplicate Student ID within the uploaded sheet.")
-    if (seenEmails.has(email)) return fail("An account with this email already exists.")
-    if (seenStudentIds.has(studentId)) return fail("A member with this Student ID already exists.")
+    if (seenEmails.has(email))
+      return fail(`An account with this email already exists (${seenEmails.get(email)}).`)
+    if (seenStudentIds.has(studentId))
+      return fail(`A member with this Student ID already exists (${seenStudentIds.get(studentId)}).`)
 
     seenEmails.add(email)
     seenStudentIds.add(studentId)

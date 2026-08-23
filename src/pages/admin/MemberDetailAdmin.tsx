@@ -12,6 +12,7 @@ import {
   Linkedin,
   Mail,
   Medal,
+  Pencil,
   Send,
   ShieldCheck,
   Tags,
@@ -21,7 +22,7 @@ import {
   Wallet,
   XCircle,
 } from 'lucide-react'
-import { Avatar, Badge, Button, EmptyState, Field, PageLoader, TextInput, Toggle } from '@/components/ui'
+import { Avatar, Badge, Button, EmptyState, Field, Modal, PageLoader, SelectInput, TextArea, TextInput, Toggle } from '@/components/ui'
 import { supabase } from '@/lib/supabase'
 import { ROLE_LABELS, isAdminRole, type MemberAchievement, type MemberStats, type PointsTransaction, type Profile } from '@/lib/types'
 import { errorMessage, formatDate, moneyPoints, socialHref } from '@/lib/utils'
@@ -76,6 +77,26 @@ export default function MemberDetailAdmin() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
+
+  const [editOpen, setEditOpen] = useState(false)
+  const [editForm, setEditForm] = useState({
+    full_name: '',
+    phone: '',
+    student_id: '',
+    department: '',
+    year_of_study: '',
+    academic_year: '',
+    team: '',
+    domain: '',
+    bio: '',
+    avatar_url: '',
+    interview_batch: '',
+    skillsText: '',
+    telegram: '',
+    github: '',
+    linkedin: '',
+    customFieldsJson: '',
+  })
 
   const load = async () => {
     if (!id) return
@@ -150,6 +171,97 @@ export default function MemberDetailAdmin() {
     load()
   }
 
+  const openEdit = () => {
+    if (!member) return
+    const sl = member.social_links ?? {}
+    setEditForm({
+      full_name: member.full_name ?? '',
+      phone: member.phone ?? '',
+      student_id: member.student_id ?? '',
+      department: member.department ?? '',
+      year_of_study: member.year_of_study ?? '',
+      academic_year: member.academic_year ?? '',
+      team: member.team ?? '',
+      domain: member.domain ?? '',
+      bio: member.bio ?? '',
+      avatar_url: member.avatar_url ?? '',
+      interview_batch: member.interview_batch ? String(member.interview_batch) : '',
+      skillsText: (member.skills ?? []).join(', '),
+      telegram: sl.telegram ?? '',
+      github: sl.github ?? '',
+      linkedin: sl.linkedin ?? '',
+      customFieldsJson:
+        member.custom_fields && Object.keys(member.custom_fields).length > 0
+          ? JSON.stringify(member.custom_fields, null, 2)
+          : '',
+    })
+    setError('')
+    setEditOpen(true)
+  }
+
+  const saveEdit = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!member) return
+    setBusy(true)
+    setError('')
+
+    let customFields: Record<string, string> | null = null
+    if (editForm.customFieldsJson.trim()) {
+      try {
+        const parsed = JSON.parse(editForm.customFieldsJson)
+        if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) throw new Error('not an object')
+        customFields = Object.fromEntries(Object.entries(parsed).map(([k, v]) => [k, String(v)]))
+      } catch {
+        setBusy(false)
+        setError('Custom fields must be a valid JSON object, e.g. {"Roll No": "23P61A0511"}.')
+        return
+      }
+    }
+
+    const socials = { ...(member.social_links ?? {}) }
+    for (const key of ['telegram', 'github', 'linkedin'] as const) {
+      const v = editForm[key].trim()
+      if (v) socials[key] = v
+      else delete socials[key]
+    }
+
+    const { error: err } = await supabase
+      .from('profiles')
+      .update({
+        full_name: editForm.full_name.trim() || null,
+        phone: editForm.phone.replace(/\D/g, '') || null,
+        student_id: editForm.student_id.replace(/\D/g, '') || null,
+        department: editForm.department.trim() || null,
+        year_of_study: editForm.year_of_study.trim() || null,
+        academic_year: editForm.academic_year.trim() || null,
+        team: editForm.team.trim() || null,
+        domain: editForm.domain.trim() || null,
+        bio: editForm.bio.trim() || null,
+        avatar_url: editForm.avatar_url.trim() || null,
+        interview_batch: editForm.interview_batch ? (Number(editForm.interview_batch) as 1 | 2) : null,
+        skills: editForm.skillsText
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean),
+        social_links: socials,
+        custom_fields: customFields ?? {},
+      })
+      .eq('id', member.id)
+
+    setBusy(false)
+    if (err) {
+      setError(errorMessage(err))
+      return
+    }
+    await supabase.rpc('log_admin_event', {
+      p_action: 'Member Details Updated',
+      p_entity_type: 'member',
+      p_entity_id: member.id,
+    })
+    setEditOpen(false)
+    load()
+  }
+
   if (loading) return <PageLoader />
   if (!member) return <EmptyState icon={<UserRound size={40} />} title="Member not found" />
 
@@ -213,7 +325,15 @@ export default function MemberDetailAdmin() {
 
       <div className="mt-5 grid gap-5 lg:grid-cols-3">
         <div className="space-y-5">
-          <SectionCard title="Personal info" icon={<UserRound size={15} />}>
+          <SectionCard
+            title="Personal info"
+            icon={<UserRound size={15} />}
+            action={
+              <Button variant="secondary" className="!px-3 !py-1.5 text-xs" onClick={openEdit}>
+                <Pencil size={13} /> Edit details
+              </Button>
+            }
+          >
             <div className="divide-y divide-slate-100">
               <InfoRow label="Full name" value={member.full_name ?? '—'} />
               <InfoRow label="Email" value={member.email ?? '—'} />
@@ -402,6 +522,94 @@ export default function MemberDetailAdmin() {
           </SectionCard>
         </div>
       </div>
+
+      <Modal open={editOpen} onClose={() => setEditOpen(false)} title={`Edit details — ${member.full_name ?? ''}`} wide>
+        <form onSubmit={saveEdit} className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Full name">
+              <TextInput value={editForm.full_name} onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })} />
+            </Field>
+            <Field label="Phone (10 digits)">
+              <TextInput value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} />
+            </Field>
+            <Field label="Student ID (10 digits)">
+              <TextInput value={editForm.student_id} onChange={(e) => setEditForm({ ...editForm, student_id: e.target.value })} />
+            </Field>
+            <Field label="Department">
+              <TextInput value={editForm.department} onChange={(e) => setEditForm({ ...editForm, department: e.target.value })} />
+            </Field>
+            <Field label="Year of study">
+              <TextInput value={editForm.year_of_study} onChange={(e) => setEditForm({ ...editForm, year_of_study: e.target.value })} />
+            </Field>
+            <Field label="Academic year">
+              <TextInput value={editForm.academic_year} onChange={(e) => setEditForm({ ...editForm, academic_year: e.target.value })} placeholder="e.g. 2025-26" />
+            </Field>
+            <Field label="Team">
+              <TextInput value={editForm.team} onChange={(e) => setEditForm({ ...editForm, team: e.target.value })} />
+            </Field>
+            <Field label="Domain">
+              <TextInput value={editForm.domain} onChange={(e) => setEditForm({ ...editForm, domain: e.target.value })} />
+            </Field>
+            <Field label="Interview batch">
+              <SelectInput value={editForm.interview_batch} onChange={(e) => setEditForm({ ...editForm, interview_batch: e.target.value })}>
+                <option value="">None</option>
+                <option value="1">Batch 1</option>
+                <option value="2">Batch 2</option>
+              </SelectInput>
+            </Field>
+            <Field label="Avatar URL">
+              <TextInput value={editForm.avatar_url} onChange={(e) => setEditForm({ ...editForm, avatar_url: e.target.value })} />
+            </Field>
+          </div>
+
+          <Field label="Bio">
+            <TextArea rows={3} value={editForm.bio} onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })} />
+          </Field>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Field label="Telegram username">
+              <TextInput value={editForm.telegram} onChange={(e) => setEditForm({ ...editForm, telegram: e.target.value })} />
+            </Field>
+            <Field label="GitHub username">
+              <TextInput value={editForm.github} onChange={(e) => setEditForm({ ...editForm, github: e.target.value })} />
+            </Field>
+            <Field label="LinkedIn username">
+              <TextInput value={editForm.linkedin} onChange={(e) => setEditForm({ ...editForm, linkedin: e.target.value })} />
+            </Field>
+          </div>
+
+          <Field label="Skills (comma separated)">
+            <TextInput
+              value={editForm.skillsText}
+              onChange={(e) => setEditForm({ ...editForm, skillsText: e.target.value })}
+              placeholder="React, Public Speaking, Design"
+            />
+          </Field>
+
+          <Field label="Custom fields (JSON)">
+            <TextArea
+              rows={4}
+              value={editForm.customFieldsJson}
+              onChange={(e) => setEditForm({ ...editForm, customFieldsJson: e.target.value })}
+              placeholder={'{"Roll No": "23P61A0511", "Hostel": "A-block"}'}
+            />
+          </Field>
+
+          {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={() => setEditOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={busy}>
+              <Pencil size={15} /> Save changes
+            </Button>
+          </div>
+          <p className="text-center text-xs text-slate-400">
+            Email, CIIE ID, role and account status are managed from their dedicated pages.
+          </p>
+        </form>
+      </Modal>
     </div>
   )
 }
