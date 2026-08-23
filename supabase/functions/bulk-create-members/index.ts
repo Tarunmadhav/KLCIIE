@@ -58,6 +58,19 @@ interface MemberResult {
   error?: string
 }
 
+interface Prepared {
+  index: number
+  clientIndex: number | null
+  fullName: string
+  email: string
+  studentId: string
+  phone: string
+  department: string
+  yearOfStudy: string
+}
+
+type AdminClient = ReturnType<typeof createClient>
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const ALLOWED_ROLES = ["super_admin", "main_admin"]
 const IMPORTABLE_ROLES = ["user", "member", "member_ciie", "faculty"]
@@ -94,10 +107,85 @@ function generatePassword(): string {
   return out.join("")
 }
 
-Deno.serve(async (req: Request) => {
+// Create one account + activate its profile. Throws only on unexpected
+// failures; expected ones (duplicate email, etc.) are reported as results.
+async function createOne(
+  admin: AdminClient,
+  m: Prepared,
+  batchRole: string,
+  results: MemberResult[],
+): Promise<void> {
+  const password = generatePassword()
+  const { data: created, error: createErr } = await admin.auth.admin.createUser({
+    email: m.email,
+    password,
+    email_confirm: true,
+    user_metadata: {
+      full_name: m.fullName,
+      phone: m.phone,
+      department: m.department,
+      year_of_study: m.yearOfStudy,
+      role: batchRole,
+    },
+  })
+
+  if (createErr || !created?.user) {
+    results.push({
+      index: m.index,
+      client_index: m.clientIndex,
+      ok: false,
+      full_name: m.fullName,
+      email: m.email,
+      student_id: m.studentId,
+      error: createErr?.message ?? "Account could not be created.",
+    })
+    return
+  }
+
+  // The signup trigger already created the profile as a pending member;
+  // activate it and fill in the Excel data.
+  const { error: updateErr } = await admin
+    .from("profiles")
+    .update({
+      status: "active",
+      role: batchRole,
+      interview_batch: null,
+      student_id: m.studentId,
+      phone: m.phone,
+      department: m.department || null,
+      year_of_study: m.yearOfStudy || null,
+    })
+    .eq("id", created.user.id)
+
+  results.push({
+    index: m.index,
+    client_index: m.clientIndex,
+    ok: !updateErr,
+    full_name: m.fullName,
+    email: m.email,
+    student_id: m.studentId,
+    password,
+    user_id: created.user.id,
+    error: updateErr ? `Account created but activation failed: ${updateErr.message}` : undefined,
+  })
+}
+
+Deno.serve(async (req: Request): Promise<Response> => {
+  // Preflight first, then guarantee that EVERY response — including unexpected
+  // crashes — carries CORS headers. A bare gateway/runtime error without CORS
+  // makes browsers block the request entirely ("Failed to send a request…").
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders })
   }
+  try {
+    return await handleRequest(req)
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e)
+    return Response.json({ error: `Function crashed: ${message}` }, { status: 500, headers: corsHeaders })
+  }
+})
+
+async function handleRequest(req: Request): Promise<Response> {
   if (req.method !== "POST") {
     return Response.json({ error: "Method not allowed" }, { status: 405, headers: corsHeaders })
   }
@@ -188,16 +276,6 @@ Deno.serve(async (req: Request) => {
     }
   }
 
-  type Prepared = {
-    index: number
-    clientIndex: number | null
-    fullName: string
-    email: string
-    studentId: string
-    phone: string
-    department: string
-    yearOfStudy: string
-  }
   const prepared: Prepared[] = []
   const rejected: MemberResult[] = []
 
@@ -233,8 +311,8 @@ Deno.serve(async (req: Request) => {
     if (seenStudentIds.has(studentId))
       return fail(`A member with this Student ID already exists (${seenStudentIds.get(studentId)}).`)
 
-    seenEmails.add(email)
-    seenStudentIds.add(studentId)
+    seenEmails.set(email, fullName)
+    seenStudentIds.set(studentId, fullName)
     prepared.push({ index, clientIndex, fullName, email, studentId, phone, department, yearOfStudy })
   })
 
@@ -243,21 +321,9 @@ Deno.serve(async (req: Request) => {
   // ------------------------------------------------------------------
   const results: MemberResult[] = []
   for (const m of prepared) {
-    const password = generatePassword()
-    const { data: created, error: createErr } = await admin.auth.admin.createUser({
-      email: m.email,
-      password,
-      email_confirm: true,
-      user_metadata: {
-        full_name: m.fullName,
-        phone: m.phone,
-        department: m.department,
-        year_of_study: m.yearOfStudy,
-        role: batchRole,
-      },
-    })
-
-    if (createErr || !created?.user) {
+    try {
+      await createOne(admin, m, batchRole, results)
+    } catch (e) {
       results.push({
         index: m.index,
         client_index: m.clientIndex,
@@ -265,37 +331,9 @@ Deno.serve(async (req: Request) => {
         full_name: m.fullName,
         email: m.email,
         student_id: m.studentId,
-        error: createErr?.message ?? "Account could not be created.",
+        error: e instanceof Error ? e.message : String(e),
       })
-      continue
     }
-
-    // The signup trigger already created the profile as a pending member;
-    // activate it and fill in the Excel data.
-    const { error: updateErr } = await admin
-      .from("profiles")
-      .update({
-        status: "active",
-        role: batchRole,
-        interview_batch: null,
-        student_id: m.studentId,
-        phone: m.phone,
-        department: m.department || null,
-        year_of_study: m.yearOfStudy || null,
-      })
-      .eq("id", created.user.id)
-
-    results.push({
-      index: m.index,
-      client_index: m.clientIndex,
-      ok: !updateErr,
-      full_name: m.fullName,
-      email: m.email,
-      student_id: m.studentId,
-      password,
-      user_id: created.user.id,
-      error: updateErr ? `Account created but activation failed: ${updateErr.message}` : undefined,
-    })
   }
 
   await admin.from("admin_audit_logs").insert({
@@ -315,4 +353,4 @@ Deno.serve(async (req: Request) => {
     { results: [...rejected, ...results], total: members.length },
     { headers: corsHeaders },
   )
-})
+}

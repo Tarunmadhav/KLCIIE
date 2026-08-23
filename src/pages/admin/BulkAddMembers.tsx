@@ -160,6 +160,22 @@ export default function BulkAddMembers() {
     }
   }, [])
 
+  // Invoke one chunk; transient network failures ("Failed to send a request…")
+  // are retried automatically — cold edge runtime / momentary blips recover.
+  const invokeChunk = async (body: Record<string, unknown>) => {
+    let lastError = ''
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { data, error } = await supabase.functions.invoke('bulk-create-members', { body })
+      if (!error) return data
+      lastError = await emailInvokeMessage(error)
+      if (!/failed to send a request|fetch failed|networkerror|load failed/i.test(lastError)) throw new Error(lastError)
+      if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 1500 * (attempt + 1)))
+    }
+    throw new Error(
+      `${lastError} — the Edge Function could not be reached after retries. Make sure the project is active and 'bulk-create-members' is deployed, then try again.`,
+    )
+  }
+
   const runImport = async () => {
     setConfirmOpen(false)
     setPhase('working')
@@ -170,21 +186,18 @@ export default function BulkAddMembers() {
     for (let i = 0; i < validRows.length; i += CHUNK_SIZE) {
       const chunk = validRows.slice(i, i + CHUNK_SIZE)
       try {
-        const { data, error } = await supabase.functions.invoke('bulk-create-members', {
-          body: {
-            role: importRole,
-            members: chunk.map((r, j) => ({
-              client_index: i + j,
-              full_name: r.fullName,
-              email: r.email,
-              student_id: r.studentId,
-              department: r.department,
-              year_of_study: r.yearOfStudy,
-              phone: r.phone,
-            })),
-          },
+        const data = await invokeChunk({
+          role: importRole,
+          members: chunk.map((r, j) => ({
+            client_index: i + j,
+            full_name: r.fullName,
+            email: r.email,
+            student_id: r.studentId,
+            department: r.department,
+            year_of_study: r.yearOfStudy,
+            phone: r.phone,
+          })),
         })
-        if (error) throw new Error(await emailInvokeMessage(error))
         type ApiResult = { index: number; client_index: number | null; ok: boolean; error?: string; password?: string }
         const api = ((data as { results?: ApiResult[] })?.results ?? []) as ApiResult[]
         for (let j = 0; j < chunk.length; j++) {
