@@ -18,6 +18,7 @@ export default function Settings() {
     allow_public_signup: true,
     signup_domain_restriction: true,
     signup_email_otp: true,
+    allow_password_reset: true,
     domains: 'kluniversity.in',
     interview_day_1: '',
     interview_day_2: '',
@@ -37,6 +38,7 @@ export default function Settings() {
       allow_public_signup: current.allow_public_signup,
       signup_domain_restriction: current.signup_domain_restriction,
       signup_email_otp: current.signup_email_otp,
+      allow_password_reset: current.allow_password_reset,
       domains: (current.signup_allowed_domains ?? []).join(', '),
       interview_day_1: current.interview_day_1 ? String(current.interview_day_1).slice(0, 10) : '',
       interview_day_2: current.interview_day_2 ? String(current.interview_day_2).slice(0, 10) : '',
@@ -62,6 +64,7 @@ export default function Settings() {
       allow_public_signup: form.allow_public_signup,
       signup_domain_restriction: form.signup_domain_restriction,
       signup_email_otp: form.signup_email_otp,
+      allow_password_reset: form.allow_password_reset,
       signup_allowed_domains: form.domains
         .split(',')
         .map((d) => d.trim().replace(/^@/, '').toLowerCase())
@@ -133,6 +136,16 @@ export default function Settings() {
           <p className="text-xs text-slate-400">
             When on, applicants must verify their email with a 6-digit code before their submission is accepted. When off,
             the OTP step is skipped — submissions are accepted immediately without email verification.
+          </p>
+          <Toggle
+            checked={form.allow_password_reset}
+            onChange={(v) => setForm({ ...form, allow_password_reset: v })}
+            label="Allow users to reset their own password (Forgot password)"
+          />
+          <p className="text-xs text-slate-400">
+            When on, the “Forgot password?” link is shown on the login page and anyone can reset their password using the
+            emailed code. When off, the link is hidden for everyone (including admins) and password resets via URL are
+            blocked.
           </p>
           <Field label="Allowed email domains" hint="Comma separated — e.g. kluniversity.in">
             <TextInput value={form.domains} onChange={(e) => setForm({ ...form, domains: e.target.value })} />

@@ -2,11 +2,13 @@ import { useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ShieldCheck } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
+import { useSettings } from '@/hooks/useSettings'
 import { Button, Field, Spinner, TextInput } from '@/components/ui'
 import { errorMessage } from '@/lib/utils'
 
 export default function Login() {
   const { signIn } = useAuth()
+  const { allow_password_reset: allowReset } = useSettings()
   const navigate = useNavigate()
   const location = useLocation()
   const [email, setEmail] = useState('')
@@ -80,9 +82,11 @@ export default function Login() {
           />
         </Field>
         <div className="flex justify-end">
-          <Link to="/reset-password" className="text-xs font-medium text-primary-600 hover:underline">
-            Forgot password?
-          </Link>
+          {allowReset && (
+            <Link to="/reset-password" className="text-xs font-medium text-primary-600 hover:underline">
+              Forgot password?
+            </Link>
+          )}
         </div>
 
         {success && <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">{success}</p>}

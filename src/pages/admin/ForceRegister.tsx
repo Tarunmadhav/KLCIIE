@@ -4,10 +4,19 @@ import { supabase } from '@/lib/supabase'
 import type { Event, Profile } from '@/lib/types'
 import { Badge, Button, EmptyState, Modal, PageHeader, PageLoader, TextInput } from '@/components/ui'
 import { errorMessage, formatDate } from '@/lib/utils'
+import { isAdminRole, isSuperAdminRole } from '@/lib/types'
 
 type ForceResult = { ok: boolean; error?: string }
 type ApiRow = { member_id: string; ok: boolean; error?: string }
 type PickerProfile = Pick<Profile, 'id' | 'full_name' | 'email' | 'ciie_id' | 'student_id' | 'role' | 'status' | 'department'>
+
+const QUICK_PICKS: Array<{ value: string; label: string }> = [
+  { value: 'users', label: 'Select all users' },
+  { value: 'members', label: 'Select all members' },
+  { value: 'faculty', label: 'Select all faculty' },
+  { value: 'admins', label: 'Select all admins' },
+  { value: 'super_admins', label: 'Select super admins' },
+]
 
 const STATUS_TONES: Record<string, 'green' | 'slate' | 'amber' | 'red'> = {
   published: 'green',
@@ -116,6 +125,28 @@ export default function ForceRegister() {
       return next
     })
   }
+
+  const applyRolePick = (kind: string) => {
+    setChecked((prev) => {
+      const next = new Set(prev)
+      for (const p of selectable) {
+        const match =
+          kind === 'users'
+            ? p.role === 'user'
+            : kind === 'members'
+              ? p.role === 'member' || p.role === 'member_ciie'
+              : kind === 'faculty'
+                ? p.role === 'faculty'
+                : kind === 'admins'
+                  ? isAdminRole(p.role) && !isSuperAdminRole(p.role)
+                  : isSuperAdminRole(p.role)
+        if (match) next.add(p.id)
+      }
+      return next
+    })
+  }
+
+  const clearSelection = () => setChecked(new Set())
 
   const submit = async () => {
     if (!activeEvent || selectable.length === 0) return
@@ -247,12 +278,34 @@ export default function ForceRegister() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-            <div className="mt-3 flex items-center justify-between border-b border-slate-200 pb-2">
-              <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-700">
-                <input type="checkbox" className="h-4 w-4 accent-primary-600" checked={allChecked} onChange={toggleAll} />
-                Select all shown
-              </label>
-              <span className="text-xs text-slate-500">{filtered.length} shown</span>
+            <div className="mt-3 space-y-2 border-b border-slate-200 pb-3">
+              <div className="flex items-center justify-between">
+                <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-700">
+                  <input type="checkbox" className="h-4 w-4 accent-primary-600" checked={allChecked} onChange={toggleAll} />
+                  Select all shown
+                </label>
+                <span className="text-xs text-slate-500">{filtered.length} shown</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {QUICK_PICKS.map((o) => (
+                  <button
+                    key={o.value}
+                    type="button"
+                    onClick={() => applyRolePick(o.value)}
+                    className="rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700 transition hover:bg-primary-100"
+                  >
+                    {o.label}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={clearSelection}
+                  disabled={checked.size === 0}
+                  className="rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Clear selection
+                </button>
+              </div>
             </div>
             <ul className="max-h-[420px] divide-y divide-slate-100 overflow-y-auto">
               {(filtered.length > 0 ? filtered : unregistered).map((p) => {

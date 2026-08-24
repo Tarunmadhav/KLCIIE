@@ -55,7 +55,7 @@ begin
     return jsonb_build_object('ok', false, 'error', 'Too many wrong attempts. Please request a new code.');
   end if;
 
-  if encode(public.digest(upper(btrim(p_code)), 'sha256'), 'hex') <> v_row.code_hash then
+  if encode(extensions.digest(upper(btrim(p_code)), 'sha256'), 'hex') <> v_row.code_hash then
     update public.email_otp_codes set attempts = attempts + 1 where id = v_row.id;
     return jsonb_build_object('ok', false, 'error', 'That code is incorrect. Please check your email and try again.');
   end if;
@@ -73,12 +73,12 @@ begin
   update public.email_otp_codes set consumed_at = now() where id = v_row.id;
 
   update auth.users
-  set encrypted_password = public.crypt(btrim(p_new_password), public.gen_salt('bf')),
+  set encrypted_password = extensions.crypt(btrim(p_new_password), extensions.gen_salt('bf')),
       updated_at = now()
   where id = v_user_id;
 
   -- Force re-login everywhere with the old credentials.
-  delete from auth.refresh_tokens where user_id = v_user_id;
+  delete from auth.refresh_tokens where user_id = v_user_id::text;
 
   if exists (select 1 from public.profiles where id = v_user_id) then
     insert into public.admin_audit_logs (actor_id, action, entity_type, entity_id, details)

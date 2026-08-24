@@ -1,11 +1,13 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { KeyRound, MailCheck, ShieldCheck } from 'lucide-react'
+import { KeyRound, MailCheck, ShieldCheck, ShieldOff } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button, Field, Spinner, TextInput } from '@/components/ui'
 import { supabase } from '@/lib/supabase'
+import { useSettings } from '@/hooks/useSettings'
 import { emailInvokeMessage, errorMessage } from '@/lib/utils'
 
 export default function ResetPassword() {
+  const { allow_password_reset: allowReset } = useSettings()
   const [step, setStep] = useState<'email' | 'otp' | 'done'>('email')
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
@@ -94,6 +96,23 @@ export default function ResetPassword() {
     }
     setNotice('A new code has been emailed to you.')
     setCooldown(60)
+  }
+
+  if (!allowReset) {
+    return (
+      <div className="card p-8 text-center">
+        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-red-100 text-red-600">
+          <ShieldOff size={24} />
+        </div>
+        <h1 className="text-xl font-bold text-slate-900">Password reset unavailable</h1>
+        <p className="mt-2 text-sm text-slate-500">
+          Self-service password reset is currently disabled. Please contact CIIE support to change your password.
+        </p>
+        <Link to="/login" className="btn-primary mt-6 inline-flex w-full items-center justify-center">
+          Back to login
+        </Link>
+      </div>
+    )
   }
 
   if (step === 'done') {

@@ -1,5 +1,8 @@
--- 0060: Fix password reset hashing for functions with an empty search_path.
--- Migration 0059 called crypt/gen_salt without the public schema prefix.
+-- 0061: Super-admin toggle for public password reset (forgot password).
+-- When off, the "Forgot password?" link is hidden and OTP resets are refused.
+
+alter table public.platform_settings
+  add column if not exists allow_password_reset boolean not null default true;
 
 create or replace function public.reset_password_with_otp(
   p_email text,
@@ -13,6 +16,13 @@ declare
   v_row public.email_otp_codes%rowtype;
   v_user_id uuid;
 begin
+  if not coalesce(
+    (select allow_password_reset from public.platform_settings where id = 1),
+    true
+  ) then
+    return jsonb_build_object('ok', false, 'error', 'Password reset is currently disabled. Please contact CIIE support.');
+  end if;
+
   if p_email is null or position('@' in btrim(p_email)) = 0 then
     return jsonb_build_object('ok', false, 'error', 'Enter a valid email address.');
   end if;
