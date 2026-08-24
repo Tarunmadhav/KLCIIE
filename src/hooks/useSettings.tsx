@@ -21,6 +21,7 @@ const DEFAULT_SETTINGS: PlatformSettings = {
   register_fields: [],
   signup_email_otp: true,
   allow_password_reset: true,
+  stop_dynamic_qr: false,
   amtps_mode: true,
   updated_by: null,
 }

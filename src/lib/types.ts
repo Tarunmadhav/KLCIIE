@@ -156,6 +156,7 @@ export interface PlatformSettings {
   register_fields: CustomFieldDef[]
   signup_email_otp: boolean
   allow_password_reset: boolean
+  stop_dynamic_qr: boolean
   amtps_mode: boolean
   updated_by: string | null
   updated_at?: string

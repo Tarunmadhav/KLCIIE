@@ -19,6 +19,7 @@ export default function Settings() {
     signup_domain_restriction: true,
     signup_email_otp: true,
     allow_password_reset: true,
+    stop_dynamic_qr: false,
     domains: 'kluniversity.in',
     interview_day_1: '',
     interview_day_2: '',
@@ -40,6 +41,7 @@ export default function Settings() {
       signup_domain_restriction: current.signup_domain_restriction,
       signup_email_otp: current.signup_email_otp,
       allow_password_reset: current.allow_password_reset,
+      stop_dynamic_qr: current.stop_dynamic_qr,
       domains: (current.signup_allowed_domains ?? []).join(', '),
       interview_day_1: current.interview_day_1 ? String(current.interview_day_1).slice(0, 10) : '',
       interview_day_2: current.interview_day_2 ? String(current.interview_day_2).slice(0, 10) : '',
@@ -67,6 +69,7 @@ export default function Settings() {
       signup_domain_restriction: form.signup_domain_restriction,
       signup_email_otp: form.signup_email_otp,
       allow_password_reset: form.allow_password_reset,
+      stop_dynamic_qr: form.stop_dynamic_qr,
       signup_allowed_domains: form.domains
         .split(',')
         .map((d) => d.trim().replace(/^@/, '').toLowerCase())
@@ -153,6 +156,19 @@ export default function Settings() {
           <Field label="Allowed email domains" hint="Comma separated — e.g. kluniversity.in">
             <TextInput value={form.domains} onChange={(e) => setForm({ ...form, domains: e.target.value })} />
           </Field>
+        </section>
+
+        <section className="card space-y-4 p-6">
+          <h2 className="text-base font-bold text-slate-900">Attendance QR</h2>
+          <Toggle
+            checked={form.stop_dynamic_qr}
+            onChange={(v) => setForm({ ...form, stop_dynamic_qr: v })}
+            label="Stop dynamic QR (keep attendance QR static)"
+          />
+          <p className="text-xs text-slate-400">
+            When off (default), every member's attendance QR changes automatically every 60 seconds. When on, the QR
+            does not change or refresh every 60 seconds — the same code stays valid until it is scanned.
+          </p>
         </section>
 
         <section className="card space-y-4 p-6">

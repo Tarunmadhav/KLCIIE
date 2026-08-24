@@ -3,6 +3,7 @@ import { CalendarClock, CheckCircle2, Clock, QrCode as QrIcon, RefreshCw } from 
 import { Badge, PageLoader, SelectInput } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
 import { useBranding } from '@/hooks/useBranding'
+import { useSettings } from '@/hooks/useSettings'
 import { qrWithLogoDataUrl } from '@/lib/qr'
 import { supabase } from '@/lib/supabase'
 import type { Event, RoundWindow } from '@/lib/types'
@@ -47,6 +48,10 @@ function eventStartsAt(e: { start_date: string; start_time?: string | null }): D
 export default function MemberQrPage() {
   const { user, profile } = useAuth()
   const branding = useBranding()
+  const settings = useSettings()
+  // When the admin enables "Stop dynamic QR", codes never rotate — the same
+  // QR stays valid until scanned, with no countdown or auto-refresh.
+  const staticQr = settings.stop_dynamic_qr
   const logoUrl = branding.qr_attendance_logo_url ?? branding.ciie_logo_url ?? '/logo.jpg'
   const [rows, setRows] = useState<RegisteredEvent[]>([])
   const [eventId, setEventId] = useState('')
@@ -180,7 +185,7 @@ export default function MemberQrPage() {
     if (shownCode) setQrShownAt(Date.now())
   }, [shownCode])
 
-  const refreshIn = qrShownAt ? Math.max(0, Math.ceil((qrShownAt + QR_ROTATE_MS - nowMs) / 1000)) : 0
+  const refreshIn = staticQr ? 0 : qrShownAt ? Math.max(0, Math.ceil((qrShownAt + QR_ROTATE_MS - nowMs) / 1000)) : 0
 
   // Auto-transition at the event's start and end times: the QR appears the
   // moment the event starts and closes once it ends — no manual refresh. The
@@ -236,10 +241,10 @@ export default function MemberQrPage() {
     !!qrInfo?.started && !qrClosed && windows.length > 0 && !anyWindowActive
 
   useEffect(() => {
-    if (!eventId || !started || qrClosed) return
+    if (!eventId || !started || qrClosed || staticQr) return
     const id = window.setInterval(() => void refreshQr(eventId, true), 5000)
     return () => window.clearInterval(id)
-  }, [eventId, started, qrClosed, refreshQr])
+  }, [eventId, started, qrClosed, staticQr, refreshQr])
 
   const onSelectEvent = (id: string) => {
     setEventId(id)
@@ -424,7 +429,10 @@ export default function MemberQrPage() {
                   })()}
 
                 <p className="mt-3 flex items-center justify-center gap-1.5 rounded-xl bg-slate-100 px-4 py-3 text-xs text-slate-500">
-                  <QrIcon size={15} /> The QR rotates automatically every ~60 seconds — show the current one, and never share a screenshot. The moment you're marked present, the tick appears instantly.
+                  <QrIcon size={15} />{' '}
+                  {staticQr
+                    ? 'This QR is static — it does not change. The moment you\'re marked present, the tick appears instantly.'
+                    : 'The QR rotates automatically every ~60 seconds — show the current one, and never share a screenshot. The moment you\'re marked present, the tick appears instantly.'}
                 </p>
                 <button className="btn-secondary mt-3 w-full" onClick={() => refreshQr(eventId)}>
                   <RefreshCw size={14} /> Refresh QRs
