@@ -45,6 +45,23 @@ export default function RecruitFinalSelection() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
+  // Live update: when an admin approves/denies the request, reflect it instantly.
+  useEffect(() => {
+    if (!user) return
+    const channel = supabase
+      .channel(`reject-request-live-${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'recruit_reject_requests', filter: `requested_by=eq.${user.id}` },
+        () => void loadRequest(),
+      )
+      .subscribe()
+    return () => {
+      supabase.removeChannel(channel)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user])
+
   const openApprove = (row: RecruitApplicationRow) => {
     setApproving(row)
     setMessage('')
@@ -133,9 +150,14 @@ export default function RecruitFinalSelection() {
               {pending.length} applicant(s) still awaiting a decision. Requires admin permission.
             </p>
           </div>
-          {!request && (
-            <Button variant="secondary" className="!px-3 !py-1.5 text-xs" onClick={() => setRequesting(true)}>
-              Request permission
+          {(!request || request.status === 'used' || request.status === 'denied') && (
+            <Button
+              variant="secondary"
+              className="!px-3 !py-1.5 text-xs"
+              disabled={pending.length === 0}
+              onClick={() => setRequesting(true)}
+            >
+              {request?.status === 'denied' ? 'Request again' : 'Request permission'}
             </Button>
           )}
         </div>
@@ -156,15 +178,15 @@ export default function RecruitFinalSelection() {
               </div>
             )}
             {request.status === 'denied' && (
-              <div className="space-y-3">
-                <p className="text-sm text-red-700">Your reject-all request was <b>denied</b> by an admin.</p>
-                <Button variant="secondary" className="!px-3 !py-1.5 text-xs" onClick={() => setRequesting(true)}>
-                  Request again
-                </Button>
-              </div>
+              <p className="text-sm text-red-700">
+                Your reject-all request was <b>denied</b> by an admin — you can send a new request above.
+              </p>
             )}
             {request.status === 'used' && (
-              <p className="text-sm text-slate-600">Reject-all has been <b>completed</b> — remaining applicants were rejected.</p>
+              <p className="text-sm text-slate-600">
+                Reject-all was <b>completed</b>. New applicants reaching Final Selection need a fresh permission — use the
+                button above.
+              </p>
             )}
             {rejectError && <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{rejectError}</p>}
           </div>
