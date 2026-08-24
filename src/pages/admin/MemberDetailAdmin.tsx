@@ -23,6 +23,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import { Avatar, Badge, Button, EmptyState, Field, Modal, PageLoader, SelectInput, TextArea, TextInput, Toggle } from '@/components/ui'
+import { useSettings } from '@/hooks/useSettings'
 import { supabase } from '@/lib/supabase'
 import { ROLE_LABELS, isAdminRole, type MemberAchievement, type MemberStats, type PointsTransaction, type Profile } from '@/lib/types'
 import { errorMessage, formatDate, moneyPoints, socialHref } from '@/lib/utils'
@@ -65,6 +66,7 @@ function SectionCard({ title, icon, action, children }: { title: string; icon?: 
 
 export default function MemberDetailAdmin() {
   const { id } = useParams<{ id: string }>()
+  const settings = useSettings()
   const [member, setMember] = useState<Profile | null>(null)
   const [stats, setStats] = useState<MemberStats | null>(null)
   const [privacy, setPrivacy] = useState<Privacy | null>(null)
@@ -379,11 +381,12 @@ export default function MemberDetailAdmin() {
           </SectionCard>
 
           {member.custom_fields && Object.keys(member.custom_fields).length > 0 && (
-            <SectionCard title="Custom fields" icon={<Tags size={15} />}>
+            <SectionCard title="Additional details" icon={<Tags size={15} />}>
               <div className="divide-y divide-slate-100">
-                {Object.entries(member.custom_fields).map(([k, v]) => (
-                  <InfoRow key={k} label={k} value={v || '—'} />
-                ))}
+                {Object.entries(member.custom_fields).map(([k, v]) => {
+                  const def = (settings.register_fields ?? []).find((f) => f.key === k)
+                  return <InfoRow key={k} label={def?.label || k} value={v || '—'} />
+                })}
               </div>
             </SectionCard>
           )}

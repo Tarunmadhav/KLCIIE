@@ -153,6 +153,7 @@ export interface PlatformSettings {
   contact_phone: string | null
   office_address: string | null
   signup_fields: CustomFieldDef[]
+  register_fields: CustomFieldDef[]
   signup_email_otp: boolean
   allow_password_reset: boolean
   amtps_mode: boolean

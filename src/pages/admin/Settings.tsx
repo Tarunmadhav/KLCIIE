@@ -30,6 +30,7 @@ export default function Settings() {
     contact_email: '',
     contact_phone: '',
     office_address: '',
+    register_fields: [] as CustomFieldDef[],
     signup_fields: [] as CustomFieldDef[],
   })
 
@@ -50,6 +51,7 @@ export default function Settings() {
       contact_email: current.contact_email ?? '',
       contact_phone: current.contact_phone ?? '',
       office_address: current.office_address ?? '',
+      register_fields: (current.register_fields ?? []) as CustomFieldDef[],
       signup_fields: (current.signup_fields ?? []) as CustomFieldDef[],
     })
   }, [current])
@@ -79,6 +81,7 @@ export default function Settings() {
       contact_email: form.contact_email.trim() || null,
       contact_phone: form.contact_phone.trim() || null,
       office_address: form.office_address.trim() || null,
+      register_fields: form.register_fields,
       signup_fields: form.signup_fields,
     }
     const { error: upErr } = await supabase.from('platform_settings').update(payload).eq('id', 1)
@@ -162,6 +165,21 @@ export default function Settings() {
             fields={form.signup_fields}
             hint="Leave empty to use the defaults (phone, year of study, department)."
             onChange={(signup_fields) => setForm({ ...form, signup_fields })}
+          />
+        </section>
+
+        <section className="card space-y-4 p-6">
+          <h2 className="text-base font-bold text-slate-900">Additional details for register</h2>
+          <p className="text-xs text-slate-400">
+            Extra form fields collected under “Additional details” on every account registration page — /register/user,
+            all role registrations and /register-faculty. NOT shown on the Join CIIE (/signup) form, which has its own
+            section above. Answers are saved to each user's profile and visible in Admin → Members → member details and
+            in the account-registrations export.
+          </p>
+          <FieldListEditor
+            fields={form.register_fields}
+            hint="Leave empty to collect only the standard details (phone, department, year of study)."
+            onChange={(register_fields) => setForm({ ...form, register_fields })}
           />
         </section>
 

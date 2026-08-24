@@ -1,7 +1,14 @@
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { ArrowRight, KeyRound, Ticket, UserPlus } from 'lucide-react'
+import { useSettings } from '@/hooks/useSettings'
 
 export default function Register() {
+  const settings = useSettings()
+
+  if (!settings.allow_public_signup) {
+    return <Navigate to="/register/user" replace />
+  }
+
   return (
     <div className="container-page max-w-3xl py-12">
       <div className="text-center">

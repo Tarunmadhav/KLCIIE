@@ -18,6 +18,7 @@ const DEFAULT_SETTINGS: PlatformSettings = {
   contact_phone: null,
   office_address: null,
   signup_fields: [],
+  register_fields: [],
   signup_email_otp: true,
   allow_password_reset: true,
   amtps_mode: true,

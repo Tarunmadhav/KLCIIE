@@ -9,11 +9,11 @@ import { formatWait, useEmailCooldown, type EmailSendStatus } from '@/hooks/useE
 import { supabase } from '@/lib/supabase'
 import type { CustomFieldDef } from '@/lib/types'
 import { emailInvokeMessage, errorMessage, isValidTenDigit } from '@/lib/utils'
+import PhoneInput from '@/components/PhoneInput'
 
-const DEFAULT_EXTRA: CustomFieldDef[] = [
+const BASE_FIELDS: CustomFieldDef[] = [
   { key: 'phone', label: 'Phone number', type: 'text', required: true },
   { key: 'department', label: 'Department / Branch', type: 'text', required: true },
-  { key: 'year_of_study', label: 'Year of study', type: 'select', required: true, options: ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year'] },
 ]
 
 export default function RoleRegister({ slug: slugProp, hideStudentId = false }: { slug?: string; hideStudentId?: boolean } = {}) {
@@ -87,7 +87,14 @@ export default function RoleRegister({ slug: slugProp, hideStudentId = false }: 
     )
   }
 
-  const fields = info.fields && info.fields.length > 0 ? info.fields : DEFAULT_EXTRA
+  const roleExtras: CustomFieldDef[] = (info.fields ?? []).filter(
+    (f) => !['phone', 'department', 'year_of_study'].includes(f.key),
+  )
+  const adminExtras = (settings.register_fields ?? []).filter(
+    (f) => f.key?.trim() && !roleExtras.some((b) => b.key === f.key),
+  )
+  const extraFields: CustomFieldDef[] = [...roleExtras, ...adminExtras]
+  const fields: CustomFieldDef[] = [...BASE_FIELDS, ...extraFields]
   const purpose = `role:${slug}`
 
   const sendOtp = async (toEmail: string) => {
@@ -369,12 +376,25 @@ export default function RoleRegister({ slug: slugProp, hideStudentId = false }: 
             <Field label="Confirm password *">
               <TextInput type="password" required value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Repeat password" />
             </Field>
+            <div className="sm:col-span-2">
+              <Field label="Phone number *" hint="10-digit mobile number">
+                <PhoneInput value={values['phone'] ?? ''} onChange={(v) => setValues({ ...values, phone: v })} />
+              </Field>
+            </div>
+            <Field label="Department / Branch *">
+              <TextInput
+                required
+                value={values['department'] ?? ''}
+                onChange={(e) => setValues({ ...values, department: e.target.value })}
+                placeholder="Department / Branch"
+              />
+            </Field>
           </div>
 
-          {fields.length > 0 && (
+          {extraFields.length > 0 && (
             <div className="border-t border-slate-200 pt-4">
               <h3 className="mb-3 text-sm font-bold text-slate-900">Additional details</h3>
-              <CustomFieldInputs fields={fields} values={values} onChange={setValues} />
+              <CustomFieldInputs fields={extraFields} values={values} onChange={setValues} />
             </div>
           )}
 
