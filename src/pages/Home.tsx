@@ -149,7 +149,7 @@ export default function Home() {
               <div className="mt-9 flex flex-wrap gap-3">
                 <Link
                   to="/upcoming-events"
-                  className="group btn bg-white text-slate-900 shadow-[0_0_36px_rgba(139,92,246,0.5)] transition hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_0_48px_rgba(139,92,246,0.65)]"
+                  className="group btn bg-white text-slate-900 shadow-[0_0_36px_rgba(139,92,246,0.5)] transition hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_0_48px_rgba(139,92,246,0.65)] dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
                 >
                   <CalendarClock size={17} /> Upcoming Events
                   <ArrowRight size={15} className="transition-transform group-hover:translate-x-1" />
@@ -175,21 +175,21 @@ export default function Home() {
               <div className="mt-12 flex flex-wrap gap-x-10 gap-y-5">
                 <div>
                   <p className="font-display text-3xl font-black text-white">{events.length}</p>
-                  <p className="mt-1 text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+                  <p className="mt-1 text-[11px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
                     Upcoming events
                   </p>
                 </div>
                 <div className="hidden h-11 w-px bg-white/15 sm:block" />
                 <div>
                   <p className="font-display text-3xl font-black text-white">{totalRegistrations}</p>
-                  <p className="mt-1 text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+                  <p className="mt-1 text-[11px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
                     Registrations
                   </p>
                 </div>
                 <div className="hidden h-11 w-px bg-white/15 sm:block" />
                 <div>
                   <p className="font-display text-3xl font-black text-white">24/7</p>
-                  <p className="mt-1 text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+                  <p className="mt-1 text-[11px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
                     Innovation hub
                   </p>
                 </div>
@@ -254,13 +254,13 @@ export default function Home() {
         <Reveal>
           <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
             <div>
-              <span className="inline-flex items-center gap-2 rounded-full bg-primary-100 px-3 py-1 text-xs font-bold uppercase tracking-widest text-primary-700">
+              <span className="inline-flex items-center gap-2 rounded-full bg-primary-100 px-3 py-1 text-xs font-bold uppercase tracking-widest text-primary-700 dark:bg-primary-900/50 dark:text-primary-300">
                 <CalendarClock size={13} /> What's happening
               </span>
-              <h2 className="mt-3 font-display text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
+              <h2 className="mt-3 font-display text-3xl font-black tracking-tight text-slate-900 dark:text-slate-100 sm:text-4xl">
                 Upcoming <span className="text-gradient">Events</span>
               </h2>
-              <p className="mt-2 text-sm text-slate-500">Register before the seats are gone.</p>
+              <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Register before the seats are gone.</p>
             </div>
             <Link
               to="/upcoming-events"
@@ -276,7 +276,7 @@ export default function Home() {
           <PageLoader />
         ) : events.length === 0 ? (
           <Reveal>
-            <p className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">
+            <p className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400">
               No upcoming events right now. Check back soon!
             </p>
           </Reveal>
@@ -292,7 +292,7 @@ export default function Home() {
       </section>
 
       {/* ============================== WHY CIIE ============================== */}
-      <section className="relative overflow-hidden bg-white py-20">
+      <section className="relative overflow-hidden bg-white py-20 dark:bg-slate-950">
         <div aria-hidden className="pointer-events-none absolute inset-0">
           <div className="animate-orb-1 absolute -top-32 right-[-6rem] h-[26rem] w-[26rem] rounded-full bg-primary-200/50 blur-3xl" />
           <div className="animate-orb-2 absolute -bottom-32 left-[-6rem] h-[26rem] w-[26rem] rounded-full bg-emerald-200/50 blur-3xl" />
@@ -301,13 +301,13 @@ export default function Home() {
         <div className="container-page relative">
           <Reveal>
             <div className="mx-auto max-w-2xl text-center">
-              <span className="inline-flex items-center gap-2 rounded-full bg-primary-100 px-3 py-1 text-xs font-bold uppercase tracking-widest text-primary-700">
+              <span className="inline-flex items-center gap-2 rounded-full bg-primary-100 px-3 py-1 text-xs font-bold uppercase tracking-widest text-primary-700 dark:bg-primary-900/50 dark:text-primary-300">
                 <Sparkles size={13} /> Why CIIE
               </span>
-              <h2 className="mt-3 font-display text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
+              <h2 className="mt-3 font-display text-3xl font-black tracking-tight text-slate-900 dark:text-slate-100 sm:text-4xl">
                 The <span className="text-gradient">CIIE experience</span>
               </h2>
-              <p className="mt-3 text-sm text-slate-500">
+              <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
                 More than events — a community where your participation and contributions are recognized.
               </p>
             </div>
@@ -322,8 +322,8 @@ export default function Home() {
                   >
                     <f.icon size={28} />
                   </div>
-                  <h3 className="font-display text-lg font-bold text-slate-900">{f.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-500">{f.text}</p>
+                  <h3 className="font-display text-lg font-bold text-slate-900 dark:text-slate-100">{f.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-500 dark:text-slate-400">{f.text}</p>
                 </div>
               </Reveal>
             ))}
@@ -337,10 +337,10 @@ export default function Home() {
           <Reveal>
             <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
               <div>
-                <span className="inline-flex items-center gap-2 rounded-full bg-primary-100 px-3 py-1 text-xs font-bold uppercase tracking-widest text-primary-700">
+                <span className="inline-flex items-center gap-2 rounded-full bg-primary-100 px-3 py-1 text-xs font-bold uppercase tracking-widest text-primary-700 dark:bg-primary-900/50 dark:text-primary-300">
                   <TrendingUp size={13} /> Newsroom
                 </span>
-                <h2 className="mt-3 font-display text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
+                <h2 className="mt-3 font-display text-3xl font-black tracking-tight text-slate-900 dark:text-slate-100 sm:text-4xl">
                   From the <span className="text-gradient">CIIE Blog</span>
                 </h2>
               </div>
@@ -357,14 +357,14 @@ export default function Home() {
                   to={`/posts/${p.slug ?? p.id}`}
                   className="glass-card group flex h-full flex-col p-7 hover:-translate-y-1.5"
                 >
-                  <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-primary-100 px-2.5 py-0.5 text-xs font-bold text-primary-700">
+                  <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-primary-100 px-2.5 py-0.5 text-xs font-bold text-primary-700 dark:bg-primary-900/50 dark:text-primary-300">
                     <Sparkles size={11} /> CIIE Blog
                   </span>
-                  <h3 className="mt-3 font-display text-lg font-bold text-slate-900 transition group-hover:text-primary-700">
+                  <h3 className="mt-3 font-display text-lg font-bold text-slate-900 dark:text-slate-100 transition group-hover:text-primary-700">
                     {p.title}
                   </h3>
                   {p.excerpt && (
-                    <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-slate-500">{p.excerpt}</p>
+                    <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-slate-500 dark:text-slate-400">{p.excerpt}</p>
                   )}
                   <span className="mt-auto pt-4 text-sm font-semibold text-primary-600">
                     Read more →
@@ -400,7 +400,7 @@ export default function Home() {
                 {settings.allow_public_signup && (
                   <Link
                     to="/signup"
-                    className="btn bg-white text-slate-900 shadow-[0_0_36px_rgba(139,92,246,0.5)] transition hover:-translate-y-0.5 hover:shadow-[0_0_48px_rgba(139,92,246,0.7)]"
+                    className="btn bg-white text-slate-900 shadow-[0_0_36px_rgba(139,92,246,0.5)] transition hover:-translate-y-0.5 hover:shadow-[0_0_48px_rgba(139,92,246,0.7)] dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
                   >
                     <Sparkles size={16} /> Join CIIE
                   </Link>
@@ -412,7 +412,7 @@ export default function Home() {
                   <CalendarClock size={16} /> Explore events
                 </Link>
               </div>
-              <p className="mt-8 flex items-center justify-center gap-1.5 text-xs text-slate-400">
+              <p className="mt-8 flex items-center justify-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
                 <CheckCircle2 size={13} className="text-emerald-400" /> {branding.institution_name}
               </p>
             </div>

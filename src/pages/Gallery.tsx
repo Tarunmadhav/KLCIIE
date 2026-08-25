@@ -103,7 +103,7 @@ export default function Gallery() {
                   className={cn('glass rounded-2xl px-6 py-4', i > 0 && 'hidden sm:block')}
                 >
                   <p className="font-display text-2xl font-black text-white">{s.value}</p>
-                  <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+                    <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
                     {s.label}
                   </p>
                 </div>
@@ -121,7 +121,7 @@ export default function Gallery() {
               <span className="inline-flex items-center gap-2 rounded-full bg-primary-100 px-3 py-1 text-xs font-bold uppercase tracking-widest text-primary-700">
                 <Camera size={13} /> Highlights
               </span>
-              <h2 className="mt-3 font-display text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
+              <h2 className="mt-3 font-display text-3xl font-black tracking-tight text-slate-900 dark:text-slate-100 sm:text-4xl">
                 Event <span className="text-gradient">Gallery</span>
               </h2>
             </div>
@@ -134,7 +134,7 @@ export default function Gallery() {
                     'inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-semibold transition',
                     filter === f.key
                       ? 'border-transparent bg-primary-600 text-white shadow-lg shadow-primary-600/30'
-                      : 'border-slate-300 bg-white text-slate-600 hover:border-primary-300 hover:text-primary-700',
+                      : 'border-slate-300 bg-white text-slate-600 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-400 hover:border-primary-300 hover:text-primary-700',
                   )}
                 >
                   <f.icon size={14} /> {f.label}
@@ -148,10 +148,10 @@ export default function Gallery() {
           <PageLoader />
         ) : filtered.length === 0 ? (
           <Reveal>
-            <div className="flex flex-col items-center rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center">
+            <div className="flex flex-col items-center rounded-2xl border border-dashed border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-900 px-6 py-16 text-center">
               <Camera size={40} className="mb-3 text-slate-300" />
-              <p className="text-sm font-semibold text-slate-700">No media yet</p>
-              <p className="mt-1 max-w-sm text-sm text-slate-500">
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">No media yet</p>
+              <p className="mt-1 max-w-sm text-sm text-slate-500 dark:text-slate-400">
                 Check back soon — CIIE photos and videos will appear here as events happen.
               </p>
             </div>

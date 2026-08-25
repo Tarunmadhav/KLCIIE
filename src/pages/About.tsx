@@ -108,7 +108,7 @@ export default function About() {
       </section>
 
       {/* MISSION */}
-      <section className="relative overflow-hidden bg-white py-20">
+      <section className="relative overflow-hidden bg-white dark:bg-slate-900 py-20">
         <div aria-hidden className="pointer-events-none absolute inset-0">
           <div className="animate-orb-1 absolute -top-24 right-[-4rem] h-[22rem] w-[22rem] rounded-full bg-primary-200/50 blur-3xl" />
           <div className="animate-orb-2 absolute bottom-[-4rem] left-[-4rem] h-[22rem] w-[22rem] rounded-full bg-emerald-200/50 blur-3xl" />
@@ -120,10 +120,10 @@ export default function About() {
               <span className="inline-flex items-center gap-2 rounded-full bg-primary-100 px-3 py-1 text-xs font-bold uppercase tracking-widest text-primary-700">
                 <Rocket size={13} /> What we stand for
               </span>
-              <h2 className="mt-3 font-display text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
+              <h2 className="mt-3 font-display text-3xl font-black tracking-tight text-slate-900 dark:text-slate-100 sm:text-4xl">
                 A community where ideas take flight
               </h2>
-              <p className="mt-4 leading-relaxed text-slate-600">
+              <p className="mt-4 leading-relaxed text-slate-600 dark:text-slate-400">
                 CIIE is the innovation, incubation and entrepreneurship centre of our university — a community where
                 students turn ideas into action. Through events, workshops, projects and competitions, members gain
                 real-world exposure, mentorship and recognition that grows their academic and professional portfolio.
@@ -146,8 +146,8 @@ export default function About() {
                   >
                     <v.icon size={24} />
                   </div>
-                  <h3 className="font-display text-lg font-bold text-slate-900">{v.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-500">{v.text}</p>
+                  <h3 className="font-display text-lg font-bold text-slate-900 dark:text-slate-100">{v.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-500 dark:text-slate-400">{v.text}</p>
                 </div>
               </Reveal>
             ))}
@@ -162,7 +162,7 @@ export default function About() {
             <span className="inline-flex items-center gap-2 rounded-full bg-primary-100 px-3 py-1 text-xs font-bold uppercase tracking-widest text-primary-700">
               <Award size={13} /> The CIIE experience
             </span>
-            <h2 className="mt-3 font-display text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
+            <h2 className="mt-3 font-display text-3xl font-black tracking-tight text-slate-900 dark:text-slate-100 sm:text-4xl">
               Three pillars, one <span className="text-gradient">journey</span>
             </h2>
           </div>
@@ -177,8 +177,8 @@ export default function About() {
                 >
                   <p.icon size={28} />
                 </div>
-                <h3 className="font-display text-lg font-bold text-slate-900">{p.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-slate-500">{p.text}</p>
+                <h3 className="font-display text-lg font-bold text-slate-900 dark:text-slate-100">{p.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate-500 dark:text-slate-400">{p.text}</p>
               </div>
             </Reveal>
           ))}

@@ -12,10 +12,28 @@ const LOGO_FIELDS: Array<{ key: LogoKey; label: string; hint: string }> = [
   { key: 'ciie_logo_url', label: 'Main CIIE logo', hint: 'Used across the site.' },
   { key: 'dark_logo_url', label: 'Dark-mode logo', hint: 'For dark backgrounds.' },
   { key: 'light_logo_url', label: 'Light-mode logo', hint: 'For light backgrounds.' },
-  { key: 'favicon_url', label: 'Favicon', hint: 'Small icon (square PNG/SVG).' },
+  { key: 'favicon_url', label: 'Favicon', hint: 'Small icon (square PNG/SVG). Applied instantly on save.' },
   { key: 'certificate_logo_url', label: 'Certificate logo', hint: 'Printed on certificates.' },
   { key: 'qr_attendance_logo_url', label: 'QR attendance logo', hint: 'Embedded in participant QR codes.' },
 ]
+
+function applyFavicon(url: string | null) {
+  const href = url || '/logo.png'
+  let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
+  if (!link) {
+    link = document.createElement('link')
+    link.rel = 'icon'
+    document.head.appendChild(link)
+  }
+  link.href = href
+  let apple = document.querySelector<HTMLLinkElement>('link[rel="apple-touch-icon"]')
+  if (!apple) {
+    apple = document.createElement('link')
+    apple.rel = 'apple-touch-icon'
+    document.head.appendChild(apple)
+  }
+  apple.href = href
+}
 
 export default function Branding() {
   const { user } = useAuth()
@@ -81,6 +99,7 @@ export default function Branding() {
       return
     }
     setSaved(true)
+    applyFavicon(settings.favicon_url)
     window.setTimeout(() => setSaved(false), 2500)
     await supabase.rpc('log_admin_event', { p_action: 'Branding Updated', p_entity_type: 'branding', p_entity_id: '1' })
   }

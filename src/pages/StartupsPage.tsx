@@ -3,7 +3,7 @@ import StartupsShowcase from '@/components/startups/StartupsShowcase'
 
 export default function StartupsPage() {
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen dark:bg-slate-950">
       <section className="bg-gradient-to-br from-primary-700 via-primary-600 to-primary-800 px-4 py-16 text-center text-white">
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 backdrop-blur">
           <Rocket size={32} />

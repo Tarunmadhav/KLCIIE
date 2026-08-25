@@ -56,8 +56,8 @@ export default function Login() {
         <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-100 text-primary-600">
           <ShieldCheck size={24} />
         </div>
-        <h1 className="text-xl font-bold text-slate-900">Welcome back</h1>
-        <p className="mt-1 text-sm text-slate-500">Log in to your CIIE account</p>
+        <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">Welcome back</h1>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Log in to your CIIE account</p>
       </div>
 
       <form onSubmit={submit} className="space-y-4">
@@ -97,7 +97,7 @@ export default function Login() {
         </Button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-slate-500">
+      <p className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
         No account?{' '}
         <Link to="/register/user" className="font-semibold text-primary-600 hover:underline">
           Register / Sign up

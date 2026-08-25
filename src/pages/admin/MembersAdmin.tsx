@@ -74,7 +74,7 @@ export default function MembersAdmin() {
 
       <div className="card mb-4 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-5">
         <div className="relative">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
           <TextInput className="!pl-9" placeholder="Search name / ID / email" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
         <SelectInput value={listedFilter} onChange={(e) => setListedFilter(e.target.value)}>

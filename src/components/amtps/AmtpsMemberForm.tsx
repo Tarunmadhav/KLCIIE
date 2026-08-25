@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ImageUp } from 'lucide-react'
-import { Avatar, Button, Field, TextArea, TextInput } from '@/components/ui'
+import { Avatar, Button, Field, SelectInput, TextArea, TextInput } from '@/components/ui'
+import { useSettings } from '@/hooks/useSettings'
 import { supabase } from '@/lib/supabase'
 import type { AmtpsMember } from '@/lib/types'
 import { errorMessage, isValidTenDigit } from '@/lib/utils'
@@ -18,6 +19,7 @@ const emptyForm = {
   github: '',
   linkedin: '',
   contact_email: '',
+  wing: '',
 }
 
 function toForm(m: AmtpsMember | null) {
@@ -35,6 +37,7 @@ function toForm(m: AmtpsMember | null) {
     github: m.github ?? '',
     linkedin: m.linkedin ?? '',
     contact_email: m.contact_email ?? '',
+    wing: m.wing ?? '',
   }
 }
 
@@ -50,6 +53,8 @@ export default function AmtpsMemberForm({ initial, onSaved, submitLabel = 'Add m
   const [busy, setBusy] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
+  const settings = useSettings()
+  const wings = settings.amtps_wings ?? []
 
   const set = (key: keyof typeof emptyForm, value: string) => setForm((f) => ({ ...f, [key]: value }))
 
@@ -93,6 +98,7 @@ export default function AmtpsMemberForm({ initial, onSaved, submitLabel = 'Add m
       p_github: form.github.trim() || null,
       p_linkedin: form.linkedin.trim() || null,
       p_contact_email: form.contact_email.trim() || null,
+      p_wing: form.wing.trim() || null,
     }
     const { data, error: rpcError } = initial
       ? await supabase.rpc('admin_update_amtps_member', { p_id: initial.id, ...params })
@@ -149,6 +155,16 @@ export default function AmtpsMemberForm({ initial, onSaved, submitLabel = 'Add m
         <Field label="Domain">
           <TextInput value={form.domain} onChange={(e) => set('domain', e.target.value)} placeholder="Web Development" />
         </Field>
+        {wings.length > 0 && (
+          <Field label="Wing">
+            <SelectInput value={form.wing} onChange={(e) => set('wing', e.target.value)}>
+              <option value="">— No wing —</option>
+              {wings.map((w) => (
+                <option key={w.id} value={w.id}>{w.name}</option>
+              ))}
+            </SelectInput>
+          </Field>
+        )}
       </div>
       <Field label="About">
         <TextArea

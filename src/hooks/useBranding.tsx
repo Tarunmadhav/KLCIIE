@@ -18,8 +18,31 @@ const DEFAULT_BRANDING: BrandingSettings = {
 
 const BrandingContext = createContext<BrandingSettings>(DEFAULT_BRANDING)
 
+function applyFavicon(url: string | null) {
+  const href = url || '/logo.png'
+  let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
+  if (!link) {
+    link = document.createElement('link')
+    link.rel = 'icon'
+    document.head.appendChild(link)
+  }
+  link.href = href
+
+  let apple = document.querySelector<HTMLLinkElement>('link[rel="apple-touch-icon"]')
+  if (!apple) {
+    apple = document.createElement('link')
+    apple.rel = 'apple-touch-icon'
+    document.head.appendChild(apple)
+  }
+  apple.href = href
+}
+
 export function BrandingProvider({ children }: { children: ReactNode }) {
   const [branding, setBranding] = useState<BrandingSettings>(DEFAULT_BRANDING)
+
+  useEffect(() => {
+    applyFavicon(branding.favicon_url)
+  }, [branding.favicon_url])
 
   useEffect(() => {
     let active = true
@@ -34,17 +57,8 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
       }
     }
     load()
-    const channel = supabase
-      .channel('branding-live')
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'branding_settings', filter: 'id=eq.1' },
-        () => load(),
-      )
-      .subscribe()
     return () => {
       active = false
-      supabase.removeChannel(channel)
     }
   }, [])
 
