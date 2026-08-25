@@ -22,7 +22,9 @@ const DEFAULT_SETTINGS: PlatformSettings = {
   signup_email_otp: true,
   allow_password_reset: true,
   stop_dynamic_qr: false,
+  use_attendance_realtime: true,
   amtps_mode: true,
+  amtps_wings: [],
   updated_by: null,
 }
 
@@ -40,17 +42,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       }
     }
     load()
-    const channel = supabase
-      .channel('platform-settings-live')
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'platform_settings', filter: 'id=eq.1' },
-        () => load(),
-      )
-      .subscribe()
     return () => {
       active = false
-      supabase.removeChannel(channel)
     }
   }, [])
 

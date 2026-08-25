@@ -61,7 +61,7 @@ export default function RegisterSuccess() {
             description: string | null
           } | null) ?? null,
         )
-        setQr(await qrWithLogoDataUrl(r.registration_code, branding.qr_attendance_logo_url ?? branding.ciie_logo_url ?? '/logo.jpg'))
+        setQr(await qrWithLogoDataUrl(r.registration_code, branding.qr_attendance_logo_url ?? branding.ciie_logo_url ?? '/logo.png'))
         setLoading(false)
       }
     }

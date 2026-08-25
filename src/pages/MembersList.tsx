@@ -50,7 +50,7 @@ export default function MembersList() {
       <PageHeader title="CIIE Members" subtitle="Discover the people driving innovation at CIIE." />
 
       <div className="relative mb-6 max-w-md">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
         <TextInput
           style={{ paddingLeft: '2.5rem' }}
           placeholder="Search by name or CIIE ID…"
@@ -83,14 +83,14 @@ export default function MembersList() {
               <Avatar name={m.full_name} src={m.avatar_url} className="h-12 w-12" />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="truncate font-bold text-slate-900">{m.full_name}</p>
+                  <p className="truncate font-bold text-slate-900 dark:text-slate-100">{m.full_name}</p>
                   {m.domain && m.role !== 'user' && <Badge tone="primary" className="shrink-0">{m.domain}</Badge>}
                 </div>
-                <p className="text-xs text-slate-400">{m.ciie_id}</p>
-                <p className="truncate text-xs text-slate-500">
+                <p className="text-xs text-slate-400 dark:text-slate-500">{m.ciie_id}</p>
+                <p className="truncate text-xs text-slate-500 dark:text-slate-400">
                   {[m.department, m.year_of_study].filter(Boolean).join(' • ') || 'CIIE Member'}
                 </p>
-                <div className="mt-1.5 flex items-center gap-2 text-slate-400">
+                <div className="mt-1.5 flex items-center gap-2 text-slate-400 dark:text-slate-500">
                   {m.social_links?.telegram && (
                     <a href={socialHref(m.social_links.telegram, 'https://t.me/')} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} title="Telegram">
                       <Send size={13} />

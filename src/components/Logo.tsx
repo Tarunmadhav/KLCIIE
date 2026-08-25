@@ -8,7 +8,7 @@ interface LogoProps {
 
 export default function Logo({ variant = 'default', className }: LogoProps) {
   const branding = useBranding()
-  const localLogo = '/logo.jpg'
+  const localLogo = '/logo.png'
   const url =
     variant === 'light'
       ? (branding.light_logo_url ?? localLogo)

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowDown, ArrowUp, ContactRound, Pencil, Trash2 } from 'lucide-react'
 import { Avatar, Button, EmptyState, PageHeader, PageLoader } from '@/components/ui'
@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabase'
 import type { AmtpsMember } from '@/lib/types'
 import { errorMessage } from '@/lib/utils'
 
-const FETCH_FIELDS = 'id, full_name, email, student_id, department, year_of_study, position, domain, avatar_url, telegram, github, linkedin, contact_email, display_order, created_at, updated_at'
+const FETCH_FIELDS = 'id, full_name, email, student_id, department, year_of_study, position, domain, avatar_url, telegram, github, linkedin, contact_email, display_order, wing, created_at, updated_at'
 
 async function fetchRows(): Promise<AmtpsMember[]> {
   const { data, error } = await supabase
@@ -31,6 +31,7 @@ export default function AmtpsAdmin() {
   const settings = useSettings()
   const navigate = useNavigate()
   const [mode, setMode] = useState(settings.amtps_mode)
+  const wings = settings.amtps_wings ?? []
 
   useEffect(() => {
     setMode(settings.amtps_mode)
@@ -43,12 +44,25 @@ export default function AmtpsAdmin() {
     setRows(loaded)
     setLoading(false)
     // Heal gaps/duplicate order values left behind by earlier edits so the
-    // lineup is always an exact 1..N sequence.
-    if (loaded.some((m, i) => (m.display_order ?? i) !== i)) {
-      setRows(loaded.map((m, i) => ({ ...m, display_order: i })))
+    // lineup is always an exact 1..N sequence per wing.
+    const wingGroups = groupRows(loaded)
+    let needsHeal = false
+    for (const members of Object.values(wingGroups)) {
+      if (members.some((m, i) => (m.display_order ?? i) !== i)) {
+        needsHeal = true
+        break
+      }
+    }
+    if (needsHeal) {
+      const healed = loaded.map((m) => {
+        const group = wingGroups[m.wing ?? ''] ?? []
+        const idx = group.findIndex((g) => g.id === m.id)
+        return { ...m, display_order: idx >= 0 ? idx : 0 }
+      })
+      setRows(healed)
       await Promise.all(
-        loaded.map((m, i) =>
-          supabase.from('amtps_members').update({ display_order: i }).eq('id', m.id).then((r) => r.error),
+        healed.map((m) =>
+          supabase.from('amtps_members').update({ display_order: m.display_order ?? 0 }).eq('id', m.id).then((r) => r.error),
         ),
       )
     }
@@ -66,6 +80,22 @@ export default function AmtpsAdmin() {
       active = false
     }
   }, [])
+
+  // Group rows by wing id, preserving wing definition order.
+  const groupRows = (list: AmtpsMember[]): Record<string, AmtpsMember[]> => {
+    const groups: Record<string, AmtpsMember[]> = {}
+    for (const w of wings) groups[w.id] = []
+    groups[''] = []
+    for (const m of list) {
+      const key = m.wing ?? ''
+      if (!groups[key]) groups[key] = []
+      groups[key].push(m)
+    }
+    return groups
+  }
+
+  const wingGroups = useMemo(() => groupRows(rows), [rows, wings])
+  const unassignedCount = (wingGroups[''] ?? []).length
 
   const remove = async (m: AmtpsMember) => {
     if (!window.confirm(`Delete "${m.full_name || m.student_id || 'this card'}" from AMTPS? It will also be removed from the public /members page.`)) return
@@ -100,16 +130,20 @@ export default function AmtpsAdmin() {
     if (!next) navigate('/amtps')
   }
 
-  // Persist a new lineup: renumber sequentially and save only changed rows.
-  const persistOrder = async (next: AmtpsMember[], prevRows: AmtpsMember[]) => {
+  // Persist a new lineup within a single wing: renumber sequentially and save only changed rows.
+  const persistOrder = async (wingKey: string, next: AmtpsMember[], prevRows: AmtpsMember[]) => {
     const renumbered = next.map((m, i) => ({ ...m, display_order: i }))
-    setRows(renumbered)
+    // Update the full rows list with renumbered wing members
+    setRows((prev) => {
+      const others = prev.filter((m) => (m.wing ?? '') !== wingKey)
+      return [...others, ...renumbered].sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0))
+    })
     const changed = renumbered.filter(
       (m, i) => prevRows[i]?.id !== m.id || prevRows[i]?.display_order !== m.display_order,
     )
     const errors = await Promise.all(
       changed.map((m) =>
-        supabase.from('amtps_members').update({ display_order: m.display_order ?? null }).eq('id', m.id).then((r) => r.error),
+        supabase.from('amtps_members').update({ display_order: m.display_order ?? 0 }).eq('id', m.id).then((r) => r.error),
       ),
     )
     const firstErr = errors.find(Boolean)
@@ -119,19 +153,21 @@ export default function AmtpsAdmin() {
     }
   }
 
-  // Move a card up/down one slot.
-  const move = async (index: number, dir: -1 | 1) => {
+  // Move a card up/down one slot within its wing.
+  const move = async (wingKey: string, index: number, dir: -1 | 1) => {
+    const group = wingGroups[wingKey] ?? []
     const target = index + dir
-    if (target < 0 || target >= rows.length) return
+    if (target < 0 || target >= group.length) return
     setError('')
-    const next = [...rows]
+    const next = [...group]
     ;[next[index], next[target]] = [next[target], next[index]]
-    await persistOrder(next, rows)
+    await persistOrder(wingKey, next, group)
   }
 
-  // Jump a card straight to a typed position number (1-based).
-  const commitOrder = async (index: number) => {
-    const card = rows[index]
+  // Jump a card straight to a typed position number (1-based) within its wing.
+  const commitOrder = async (wingKey: string, index: number) => {
+    const group = wingGroups[wingKey] ?? []
+    const card = group[index]
     const raw = orderDrafts[card.id]
     setOrderDrafts((prev) => {
       const n = { ...prev }
@@ -140,18 +176,84 @@ export default function AmtpsAdmin() {
     })
     if (raw == null || raw.trim() === '') return
     const pos = Number(raw)
-    if (!Number.isInteger(pos) || pos < 1 || pos > rows.length || pos - 1 === index) {
-      setError(`Enter a position between 1 and ${rows.length}.`)
+    if (!Number.isInteger(pos) || pos < 1 || pos > group.length || pos - 1 === index) {
+      setError(`Enter a position between 1 and ${group.length}.`)
       return
     }
     setError('')
-    const next = [...rows]
+    const next = [...group]
     const [moved] = next.splice(index, 1)
     next.splice(pos - 1, 0, moved)
-    await persistOrder(next, rows)
+    await persistOrder(wingKey, next, group)
   }
 
   if (loading) return <PageLoader />
+
+  const renderMemberCard = (m: AmtpsMember, i: number, wingKey: string, groupLength: number) => (
+    <div key={m.id} className="card flex items-center gap-3 p-3">
+      <Avatar name={m.full_name || 'AMTPS'} src={m.avatar_url} className="h-12 w-12 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-bold text-slate-900">{m.full_name || '—'}</p>
+        <p className="truncate text-xs text-slate-500">
+          {[m.student_id, m.position].filter(Boolean).join(' • ') || 'No details yet'}
+        </p>
+      </div>
+      <div className="flex shrink-0 flex-col items-center gap-0.5">
+        <button
+          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-primary-600 disabled:opacity-30"
+          title="Move up"
+          disabled={i === 0}
+          onClick={() => void move(wingKey, i, -1)}
+        >
+          <ArrowUp size={14} />
+        </button>
+        <input
+          type="number"
+          min={1}
+          max={groupLength}
+          value={orderDrafts[m.id] ?? String(i + 1)}
+          onChange={(e) => setOrderDrafts((prev) => ({ ...prev, [m.id]: e.target.value }))}
+          onBlur={() => void commitOrder(wingKey, i)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              e.currentTarget.blur()
+            }
+          }}
+          title="Type a position number and press Enter"
+          className="w-10 rounded-md border border-slate-200 px-0.5 py-0.5 text-center text-[11px] font-bold text-slate-600 focus:border-primary-400 focus:outline-none"
+        />
+        <button
+          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-primary-600 disabled:opacity-30"
+          title="Move down"
+          disabled={i === groupLength - 1}
+          onClick={() => void move(wingKey, i, 1)}
+        >
+          <ArrowDown size={14} />
+        </button>
+      </div>
+      <div className="flex shrink-0 items-center gap-1">
+        <button
+          className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-primary-600"
+          title="Edit"
+          onClick={() => {
+            setError('')
+            setEditing(m)
+          }}
+        >
+          <Pencil size={15} />
+        </button>
+        <button
+          className="rounded-lg p-2 text-slate-500 hover:bg-red-50 hover:text-red-600"
+          title="Delete"
+          disabled={deleting === m.id}
+          onClick={() => void remove(m)}
+        >
+          {deleting === m.id ? <span className="text-xs">…</span> : <Trash2 size={15} />}
+        </button>
+      </div>
+    </div>
+  )
 
   return (
     <div className="space-y-6">
@@ -199,82 +301,49 @@ export default function AmtpsAdmin() {
         </Button>
       </div>
 
-      <section>
-        <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-slate-400">
-          Added members ({rows.length}) — use ↑ / ↓ to set the display order on the Members page
-        </h2>
-        {rows.length === 0 ? (
-          <EmptyState icon={<ContactRound size={40} />} title="No AMTPS members yet" subtitle="Add your first team card above." />
-        ) : (
+      {rows.length === 0 ? (
+        <EmptyState icon={<ContactRound size={40} />} title="No AMTPS members yet" subtitle="Add your first team card above." />
+      ) : wings.length > 0 ? (
+        wings.map((w) => {
+          const members = wingGroups[w.id] ?? []
+          return (
+            <section key={w.id}>
+              <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-slate-400">
+                {w.name} ({members.length})
+              </h2>
+              {members.length === 0 ? (
+                <p className="text-xs text-slate-400">No members in this wing yet.</p>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {members.map((m, i) => renderMemberCard(m, i, w.id, members.length))}
+                </div>
+              )}
+            </section>
+          )
+        })
+      ) : null}
+
+      {unassignedCount > 0 && (
+        <section>
+          <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-slate-400">
+            Unassigned ({unassignedCount})
+          </h2>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {rows.map((m, i) => (
-              <div key={m.id} className="card flex items-center gap-3 p-3">
-                <Avatar name={m.full_name || 'AMTPS'} src={m.avatar_url} className="h-12 w-12 shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold text-slate-900">{m.full_name || '—'}</p>
-                  <p className="truncate text-xs text-slate-500">
-                    {[m.student_id, m.position].filter(Boolean).join(' • ') || 'No details yet'}
-                  </p>
-                </div>
-                <div className="flex shrink-0 flex-col items-center gap-0.5">
-                  <button
-                    className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-primary-600 disabled:opacity-30"
-                    title="Move up — appears earlier on the Members page"
-                    disabled={i === 0}
-                    onClick={() => void move(i, -1)}
-                  >
-                    <ArrowUp size={14} />
-                  </button>
-                  <input
-                    type="number"
-                    min={1}
-                    max={rows.length}
-                    value={orderDrafts[m.id] ?? String(i + 1)}
-                    onChange={(e) => setOrderDrafts((prev) => ({ ...prev, [m.id]: e.target.value }))}
-                    onBlur={() => void commitOrder(i)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault()
-                        e.currentTarget.blur()
-                      }
-                    }}
-                    title="Type a position number and press Enter"
-                    className="w-10 rounded-md border border-slate-200 px-0.5 py-0.5 text-center text-[11px] font-bold text-slate-600 focus:border-primary-400 focus:outline-none"
-                  />
-                  <button
-                    className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-primary-600 disabled:opacity-30"
-                    title="Move down — appears later on the Members page"
-                    disabled={i === rows.length - 1}
-                    onClick={() => void move(i, 1)}
-                  >
-                    <ArrowDown size={14} />
-                  </button>
-                </div>
-                <div className="flex shrink-0 items-center gap-1">
-                  <button
-                    className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-primary-600"
-                    title="Edit"
-                    onClick={() => {
-                      setError('')
-                      setEditing(m)
-                    }}
-                  >
-                    <Pencil size={15} />
-                  </button>
-                  <button
-                    className="rounded-lg p-2 text-slate-500 hover:bg-red-50 hover:text-red-600"
-                    title="Delete"
-                    disabled={deleting === m.id}
-                    onClick={() => void remove(m)}
-                  >
-                    {deleting === m.id ? <span className="text-xs">…</span> : <Trash2 size={15} />}
-                  </button>
-                </div>
-              </div>
-            ))}
+            {(wingGroups[''] ?? []).map((m, i) => renderMemberCard(m, i, '', unassignedCount))}
           </div>
-        )}
-      </section>
+        </section>
+      )}
+
+      {rows.length > 0 && wings.length === 0 && (
+        <section>
+          <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-slate-400">
+            All members ({rows.length}) — use ↑ / ↓ to set the display order on the Members page
+          </h2>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {rows.map((m, i) => renderMemberCard(m, i, '', rows.length))}
+          </div>
+        </section>
+      )}
     </div>
   )
 }

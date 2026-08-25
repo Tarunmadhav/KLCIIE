@@ -110,7 +110,7 @@ export default function EventDetail() {
   if (!event) {
     return (
       <div className="container-page py-20 text-center">
-        <p className="text-lg font-semibold text-slate-700">Event not found</p>
+        <p className="text-lg font-semibold text-slate-700 dark:text-slate-300">Event not found</p>
         <Link to="/events" className="btn-primary mt-4">
           Browse events
         </Link>
@@ -164,7 +164,7 @@ export default function EventDetail() {
                   )}
                   {event.mode === 'hybrid' && <Badge tone="slate">Hybrid</Badge>}
                 </div>
-                <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-900">{event.title}</h1>
+                <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-900 dark:text-slate-100">{event.title}</h1>
               </div>
               <div className="shrink-0">
                 {registered ? (
@@ -209,8 +209,8 @@ export default function EventDetail() {
 
             {event.description && (
               <div className="mt-6">
-                <h2 className="mb-2 text-lg font-bold text-slate-900">About</h2>
-                <p className="whitespace-pre-line text-sm leading-relaxed text-slate-600">{event.description}</p>
+                <h2 className="mb-2 text-lg font-bold text-slate-900 dark:text-slate-100">About</h2>
+                <p className="whitespace-pre-line text-sm leading-relaxed text-slate-600 dark:text-slate-400">{event.description}</p>
               </div>
             )}
             {event.coordinator_note && (
@@ -222,7 +222,7 @@ export default function EventDetail() {
         {/* EVENT TEAM (public) */}
         {event.show_team_public && grouped.size > 0 && (
           <section className="mt-8">
-            <h2 className="mb-4 text-xl font-extrabold text-slate-900">Event Team</h2>
+            <h2 className="mb-4 text-xl font-extrabold text-slate-900 dark:text-slate-100">Event Team</h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {Array.from(grouped.entries()).map(([roleName, rows]) => (
                 <div key={roleName} className="card p-5">
@@ -231,7 +231,7 @@ export default function EventDetail() {
                     {rows.map((t) => (
                       <li key={t.id} className="flex items-center gap-2">
                         <Avatar name={t.member?.full_name} src={t.member?.avatar_url} className="h-8 w-8 text-xs" />
-                        <span className="text-sm font-medium text-slate-700">
+                        <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
                           <Link to={`/members/${t.member_id}`} className="hover:text-primary-600">
                             {t.member?.full_name}
                           </Link>
@@ -248,14 +248,14 @@ export default function EventDetail() {
         {/* ANNOUNCEMENTS */}
         {announcements.length > 0 && (
           <section className="mt-8">
-            <h2 className="mb-4 flex items-center gap-2 text-xl font-extrabold text-slate-900">
+            <h2 className="mb-4 flex items-center gap-2 text-xl font-extrabold text-slate-900 dark:text-slate-100">
               <Megaphone size={20} /> Announcements
             </h2>
             <div className="space-y-3">
               {announcements.map((a) => (
                 <div key={a.id} className="card p-4">
-                  <p className="font-semibold text-slate-900">{a.title}</p>
-                  {a.body && <p className="mt-1 text-sm text-slate-600">{a.body}</p>}
+                  <p className="font-semibold text-slate-900 dark:text-slate-100">{a.title}</p>
+                  {a.body && <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{a.body}</p>}
                 </div>
               ))}
             </div>
@@ -265,7 +265,7 @@ export default function EventDetail() {
         {/* GALLERY */}
         {gallery.length > 0 && (
           <section className="mt-8">
-            <h2 className="mb-4 flex items-center gap-2 text-xl font-extrabold text-slate-900">
+            <h2 className="mb-4 flex items-center gap-2 text-xl font-extrabold text-slate-900 dark:text-slate-100">
               <ImageIcon size={20} /> Gallery
             </h2>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
@@ -300,7 +300,7 @@ export default function EventDetail() {
             <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100 text-green-600">
               <CheckCircle2 size={32} />
             </span>
-            <p className="mt-4 text-sm text-slate-600">
+            <p className="mt-4 text-sm text-slate-600 dark:text-slate-400">
               You're registered for <strong>{event.title}</strong>. Show your ticket QR at the venue to confirm your
               attendance.
             </p>
@@ -368,11 +368,11 @@ export default function EventDetail() {
 
 function Info({ label, value, children }: { label: string; value: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-3 rounded-lg bg-slate-50 px-4 py-3">
-      <span className="text-slate-400">{children}</span>
+    <div className="flex items-center gap-3 rounded-lg bg-slate-50 dark:bg-slate-800 px-4 py-3">
+      <span className="text-slate-400 dark:text-slate-500">{children}</span>
       <div>
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{label}</p>
-        <p className="text-sm font-semibold text-slate-800">{value}</p>
+        <p className="text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">{label}</p>
+        <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{value}</p>
       </div>
     </div>
   )

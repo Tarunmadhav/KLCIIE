@@ -45,23 +45,6 @@ export default function RecruitFinalSelection() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
-  // Live update: when an admin approves/denies the request, reflect it instantly.
-  useEffect(() => {
-    if (!user) return
-    const channel = supabase
-      .channel(`reject-request-live-${user.id}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'recruit_reject_requests', filter: `requested_by=eq.${user.id}` },
-        () => void loadRequest(),
-      )
-      .subscribe()
-    return () => {
-      supabase.removeChannel(channel)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user])
-
   const openApprove = (row: RecruitApplicationRow) => {
     setApproving(row)
     setMessage('')

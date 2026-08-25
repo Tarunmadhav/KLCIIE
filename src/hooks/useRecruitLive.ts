@@ -22,14 +22,6 @@ export function useRecruitLive() {
 
   useEffect(() => {
     void refresh()
-    const channel = supabase
-      .channel('recruit-live')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'recruit_applications' }, () => void refresh())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'recruit_evaluations' }, () => void refresh())
-      .subscribe()
-    return () => {
-      supabase.removeChannel(channel)
-    }
   }, [refresh])
 
   return { rows, error, refresh }

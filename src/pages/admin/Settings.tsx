@@ -1,11 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Save } from 'lucide-react'
+import { ArrowDown, ArrowUp, Plus, Save, Trash2 } from 'lucide-react'
 import { Button, Field, PageHeader, TextInput, Toggle } from '@/components/ui'
 import { FieldListEditor } from '@/components/FieldListEditor'
 import { useAuth } from '@/hooks/useAuth'
 import { useSettings } from '@/hooks/useSettings'
 import { supabase } from '@/lib/supabase'
-import type { CustomFieldDef } from '@/lib/types'
+import type { AmtpsWing, CustomFieldDef } from '@/lib/types'
 import { errorMessage } from '@/lib/utils'
 
 export default function Settings() {
@@ -20,6 +20,7 @@ export default function Settings() {
     signup_email_otp: true,
     allow_password_reset: true,
     stop_dynamic_qr: false,
+    use_attendance_realtime: true,
     domains: 'kluniversity.in',
     interview_day_1: '',
     interview_day_2: '',
@@ -33,6 +34,7 @@ export default function Settings() {
     office_address: '',
     register_fields: [] as CustomFieldDef[],
     signup_fields: [] as CustomFieldDef[],
+    amtps_wings: [] as AmtpsWing[],
   })
 
   useEffect(() => {
@@ -42,6 +44,7 @@ export default function Settings() {
       signup_email_otp: current.signup_email_otp,
       allow_password_reset: current.allow_password_reset,
       stop_dynamic_qr: current.stop_dynamic_qr,
+      use_attendance_realtime: current.use_attendance_realtime,
       domains: (current.signup_allowed_domains ?? []).join(', '),
       interview_day_1: current.interview_day_1 ? String(current.interview_day_1).slice(0, 10) : '',
       interview_day_2: current.interview_day_2 ? String(current.interview_day_2).slice(0, 10) : '',
@@ -55,6 +58,7 @@ export default function Settings() {
       office_address: current.office_address ?? '',
       register_fields: (current.register_fields ?? []) as CustomFieldDef[],
       signup_fields: (current.signup_fields ?? []) as CustomFieldDef[],
+      amtps_wings: (current.amtps_wings ?? []) as AmtpsWing[],
     })
   }, [current])
 
@@ -70,6 +74,7 @@ export default function Settings() {
       signup_email_otp: form.signup_email_otp,
       allow_password_reset: form.allow_password_reset,
       stop_dynamic_qr: form.stop_dynamic_qr,
+      use_attendance_realtime: form.use_attendance_realtime,
       signup_allowed_domains: form.domains
         .split(',')
         .map((d) => d.trim().replace(/^@/, '').toLowerCase())
@@ -86,6 +91,7 @@ export default function Settings() {
       office_address: form.office_address.trim() || null,
       register_fields: form.register_fields,
       signup_fields: form.signup_fields,
+      amtps_wings: form.amtps_wings,
     }
     const { error: upErr } = await supabase.from('platform_settings').update(payload).eq('id', 1)
     setBusy(false)
@@ -116,13 +122,13 @@ export default function Settings() {
 
       <form onSubmit={submit} className="max-w-3xl space-y-6">
         <section className="card space-y-4 p-6">
-          <h2 className="text-base font-bold text-slate-900">Registration</h2>
+          <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Registration</h2>
           <Toggle
             checked={form.allow_public_signup}
             onChange={(v) => setForm({ ...form, allow_public_signup: v })}
             label="Show Join CIIE button (allow public recruitment)"
           />
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-400 dark:text-slate-500">
             When off, the Join CIIE button is hidden across the site and new recruitment signups are blocked. Event
             registration on individual event pages is unaffected.
           </p>
@@ -131,7 +137,7 @@ export default function Settings() {
             onChange={(v) => setForm({ ...form, signup_domain_restriction: v })}
             label="Restrict signup to allowed email domains"
           />
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-400 dark:text-slate-500">
             When on, only email addresses from the domains below can register. When off, every domain is allowed.
           </p>
           <Toggle
@@ -139,7 +145,7 @@ export default function Settings() {
             onChange={(v) => setForm({ ...form, signup_email_otp: v })}
             label="Require email OTP verification during registration"
           />
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-400 dark:text-slate-500">
             When on, applicants must verify their email with a 6-digit code before their submission is accepted. When off,
             the OTP step is skipped — submissions are accepted immediately without email verification.
           </p>
@@ -148,7 +154,7 @@ export default function Settings() {
             onChange={(v) => setForm({ ...form, allow_password_reset: v })}
             label="Allow users to reset their own password (Forgot password)"
           />
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-400 dark:text-slate-500">
             When on, the “Forgot password?” link is shown on the login page and anyone can reset their password using the
             emailed code. When off, the link is hidden for everyone (including admins) and password resets via URL are
             blocked.
@@ -159,21 +165,31 @@ export default function Settings() {
         </section>
 
         <section className="card space-y-4 p-6">
-          <h2 className="text-base font-bold text-slate-900">Attendance QR</h2>
+          <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Attendance QR</h2>
           <Toggle
             checked={form.stop_dynamic_qr}
             onChange={(v) => setForm({ ...form, stop_dynamic_qr: v })}
             label="Stop dynamic QR (keep attendance QR static)"
           />
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-400 dark:text-slate-500">
             When off (default), every member's attendance QR changes automatically every 60 seconds. When on, the QR
             does not change or refresh every 60 seconds — the same code stays valid until it is scanned.
+          </p>
+          <Toggle
+            checked={form.use_attendance_realtime}
+            onChange={(v) => setForm({ ...form, use_attendance_realtime: v })}
+            label="Enable realtime for attendance"
+          />
+          <p className="text-xs text-slate-400 dark:text-slate-500">
+            When on (default), the member QR page receives push updates the moment their attendance is marked — the
+            checkmark appears instantly. When off, the page polls every 5 seconds instead, which uses fewer realtime
+            connections but adds a short delay.
           </p>
         </section>
 
         <section className="card space-y-4 p-6">
-          <h2 className="text-base font-bold text-slate-900">Join CIIE registration details</h2>
-          <p className="text-xs text-slate-400">
+          <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Join CIIE registration details</h2>
+          <p className="text-xs text-slate-400 dark:text-slate-500">
             These fields appear on the Join CIIE (/signup) form. Every field is mandatory. Add any extra details you
             want to collect — phone, department, year of study, roll number, etc.
           </p>
@@ -185,8 +201,8 @@ export default function Settings() {
         </section>
 
         <section className="card space-y-4 p-6">
-          <h2 className="text-base font-bold text-slate-900">Additional details for register</h2>
-          <p className="text-xs text-slate-400">
+          <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Additional details for register</h2>
+          <p className="text-xs text-slate-400 dark:text-slate-500">
             Extra form fields collected under “Additional details” on every account registration page — /register/user,
             all role registrations and /register-faculty. NOT shown on the Join CIIE (/signup) form, which has its own
             section above. Answers are saved to each user's profile and visible in Admin → Members → member details and
@@ -200,8 +216,8 @@ export default function Settings() {
         </section>
 
         <section className="card space-y-4 p-6">
-          <h2 className="text-base font-bold text-slate-900">GD &amp; Interview dates</h2>
-          <p className="text-xs text-slate-400">
+          <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">GD &amp; Interview dates</h2>
+          <p className="text-xs text-slate-400 dark:text-slate-500">
             Applicants are split into two batches by registration order — batch 1 attends on the first date, batch 2 on the
             second. Every student sees their assigned date right after registering.
           </p>
@@ -216,8 +232,87 @@ export default function Settings() {
         </section>
 
         <section className="card space-y-4 p-6">
-          <h2 className="text-base font-bold text-slate-900">Contact &amp; Social media</h2>
-          <p className="text-xs text-slate-400">
+          <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">AMTPS Wings</h2>
+          <p className="text-xs text-slate-400 dark:text-slate-500">
+            Define sub-groups for the AMTPS team showcase. Members are grouped by wing on the public /amtps page in the
+            order listed below.
+          </p>
+          {form.amtps_wings.length === 0 && (
+            <p className="text-xs text-slate-400 dark:text-slate-500">No wings defined yet. Add your first wing above.</p>
+          )}
+          <div className="space-y-2">
+            {form.amtps_wings.map((wing, i) => (
+              <div key={wing.id} className="flex items-center gap-2">
+                <span className="w-6 shrink-0 text-center text-xs font-bold text-slate-400 dark:text-slate-500">{i + 1}</span>
+                <input
+                  type="text"
+                  value={wing.name}
+                  onChange={(e) => {
+                    const next = [...form.amtps_wings]
+                    next[i] = { ...next[i], name: e.target.value }
+                    setForm((f) => ({ ...f, amtps_wings: next }))
+                  }}
+                  className="input flex-1"
+                  placeholder="Wing name"
+                />
+                <button
+                  type="button"
+                  className="rounded-lg p-1.5 text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-primary-600 disabled:opacity-30"
+                  disabled={i === 0}
+                  title="Move up"
+                  onClick={() => {
+                    const next = [...form.amtps_wings]
+                    ;[next[i - 1], next[i]] = [next[i], next[i - 1]]
+                    setForm((f) => ({ ...f, amtps_wings: next }))
+                  }}
+                >
+                  <ArrowUp size={14} />
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg p-1.5 text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-primary-600 disabled:opacity-30"
+                  disabled={i === form.amtps_wings.length - 1}
+                  title="Move down"
+                  onClick={() => {
+                    const next = [...form.amtps_wings]
+                    ;[next[i], next[i + 1]] = [next[i + 1], next[i]]
+                    setForm((f) => ({ ...f, amtps_wings: next }))
+                  }}
+                >
+                  <ArrowDown size={14} />
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg p-1.5 text-slate-400 dark:text-slate-500 hover:bg-red-50 hover:text-red-600"
+                  title="Remove wing"
+                  onClick={() => {
+                    const next = form.amtps_wings.filter((_, j) => j !== i)
+                    setForm((f) => ({ ...f, amtps_wings: next }))
+                  }}
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => {
+              const id = crypto.randomUUID?.() ?? Math.random().toString(36).slice(2, 10)
+              setForm((f) => ({
+                ...f,
+                amtps_wings: [...f.amtps_wings, { id, name: '', display_order: f.amtps_wings.length }],
+              }))
+            }}
+          >
+            <Plus size={14} /> Add wing
+          </Button>
+        </section>
+
+        <section className="card space-y-4 p-6">
+          <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Contact &amp; Social media</h2>
+          <p className="text-xs text-slate-400 dark:text-slate-500">
             Shown on the public About and Contact pages and in the site footer.
           </p>
           <div className="grid gap-4 sm:grid-cols-2">

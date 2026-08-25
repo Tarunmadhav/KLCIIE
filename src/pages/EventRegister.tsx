@@ -31,7 +31,6 @@ export default function EventRegister() {
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [department, setDepartment] = useState('')
-  const [year, setYear] = useState('')
   const [college, setCollege] = useState('')
   const [answers, setAnswers] = useState<Record<string, string>>({})
 
@@ -65,7 +64,7 @@ export default function EventRegister() {
   const fields = (event.form_fields as unknown as FormField[]) ?? []
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name.trim() || !email.trim() || !department.trim() || !year.trim() || !college.trim()) {
+    if (!name.trim() || !email.trim() || !department.trim() || !college.trim()) {
       setError('Please fill in all required fields.')
       setBusy(false)
       return
@@ -98,7 +97,6 @@ export default function EventRegister() {
       p_email: email.trim(),
       p_phone: phone.trim() || null,
       p_department: department.trim() || null,
-      p_year_of_study: year.trim() || null,
       p_college: college.trim() || null,
       p_form_data: formData,
     })
@@ -124,8 +122,8 @@ export default function EventRegister() {
       <Link to={`/events/${event.slug ?? event.id}`} className="text-sm font-medium text-primary-600 hover:underline">
         ← Back to event
       </Link>
-      <h1 className="mt-3 text-2xl font-extrabold text-slate-900">Register for {event.title}</h1>
-      <p className="mt-1 text-sm text-slate-500">
+      <h1 className="mt-3 text-2xl font-extrabold text-slate-900 dark:text-slate-100">Register for {event.title}</h1>
+      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
         {event.mode === 'offline' ? event.venue : 'Online event'} • {seatsRemaining(event)} seats remaining
       </p>
 
@@ -146,23 +144,14 @@ export default function EventRegister() {
           <Field label="Department *">
             <TextInput required value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="CSE" />
           </Field>
-          <Field label="Year of study *">
-            <SelectInput required value={year} onChange={(e) => setYear(e.target.value)}>
-              <option value="">Select year</option>
-              <option>1st Year</option>
-              <option>2nd Year</option>
-              <option>3rd Year</option>
-              <option>4th Year</option>
-            </SelectInput>
-          </Field>
           <Field label="College / Institution *">
             <TextInput required value={college} onChange={(e) => setCollege(e.target.value)} placeholder="KL University" />
           </Field>
         </div>
 
         {fields.length > 0 && (
-          <div className="border-t border-slate-200 pt-4">
-            <h3 className="mb-3 text-sm font-bold text-slate-900">Additional questions</h3>
+          <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
+            <h3 className="mb-3 text-sm font-bold text-slate-900 dark:text-slate-100">Additional questions</h3>
             <div className="grid gap-4">
               {fields.map((f) => (
                 <Field key={f.key} label={`${f.label}${f.required ? ' *' : ''}`}>

@@ -17,23 +17,12 @@ export default function Footer() {
   ].filter((s) => s.url)
 
   return (
-    <footer className="border-t border-slate-200 bg-white text-slate-600">
+    <footer className="border-t border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
       <div className="container-page grid gap-8 py-12 md:grid-cols-4">
         <div className="md:col-span-2">
           <Logo />
-          <p className="mt-4 max-w-md text-sm text-slate-500">{branding.ciie_name}</p>
-          <p className="mt-1 text-sm text-slate-400">{branding.institution_name}</p>
-          <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Sponsored by{' '}
-            <a
-              href="https://successkart.vercel.app"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary-600 transition hover:text-primary-700 hover:underline"
-            >
-              SuccessKart
-            </a>
-          </p>
+          <p className="mt-4 max-w-md text-sm text-slate-500 dark:text-slate-400">{branding.ciie_name}</p>
+          <p className="mt-1 text-sm text-slate-400 dark:text-slate-500">{branding.institution_name}</p>
           {socials.length > 0 && (
             <div className="mt-4 flex gap-3">
               {socials.map((s) => (
@@ -43,7 +32,7 @@ export default function Footer() {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={s.label}
-                  className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-primary-100 hover:text-primary-700"
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-primary-100 hover:text-primary-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-primary-900/40 dark:hover:text-primary-400"
                 >
                   <s.icon size={15} />
                 </a>
@@ -52,27 +41,27 @@ export default function Footer() {
           )}
         </div>
         <div>
-          <h4 className="mb-3 text-sm font-semibold text-slate-900">Platform</h4>
+          <h4 className="mb-3 text-sm font-semibold text-slate-900 dark:text-slate-100">Platform</h4>
           <ul className="space-y-2 text-sm">
-            <li><Link className="hover:text-primary-600" to="/events">Events</Link></li>
-            <li><Link className="hover:text-primary-600" to="/upcoming-events">Upcoming Events</Link></li>
-            <li><Link className="hover:text-primary-600" to="/gallery">Gallery</Link></li>
-            <li><Link className="hover:text-primary-600" to="/members">Members</Link></li>
+            <li><Link className="hover:text-primary-600 dark:hover:text-primary-400" to="/events">Events</Link></li>
+            <li><Link className="hover:text-primary-600 dark:hover:text-primary-400" to="/upcoming-events">Upcoming Events</Link></li>
+            <li><Link className="hover:text-primary-600 dark:hover:text-primary-400" to="/gallery">Gallery</Link></li>
+            <li><Link className="hover:text-primary-600 dark:hover:text-primary-400" to="/members">Members</Link></li>
           </ul>
         </div>
         <div>
-          <h4 className="mb-3 text-sm font-semibold text-slate-900">CIIE</h4>
+          <h4 className="mb-3 text-sm font-semibold text-slate-900 dark:text-slate-100">CIIE</h4>
           <ul className="space-y-2 text-sm">
-            <li><Link className="hover:text-primary-600" to="/about">About CIIE</Link></li>
-            <li><Link className="hover:text-primary-600" to="/contact">Contact</Link></li>
-            <li><Link className="hover:text-primary-600" to="/login">Log in</Link></li>
+            <li><Link className="hover:text-primary-600 dark:hover:text-primary-400" to="/about">About CIIE</Link></li>
+            <li><Link className="hover:text-primary-600 dark:hover:text-primary-400" to="/contact">Contact</Link></li>
+            <li><Link className="hover:text-primary-600 dark:hover:text-primary-400" to="/login">Log in</Link></li>
             {settings.allow_public_signup && (
-              <li><Link className="hover:text-primary-600" to="/signup">Join CIIE</Link></li>
+              <li><Link className="hover:text-primary-600 dark:hover:text-primary-400" to="/signup">Join CIIE</Link></li>
             )}
           </ul>
         </div>
       </div>
-      <div className="border-t border-slate-200 py-4 text-center text-xs text-slate-400">
+      <div className="border-t border-slate-200 py-4 text-center text-xs text-slate-400 dark:border-slate-700 dark:text-slate-500">
         © {new Date().getFullYear()} KL CIIE Platform.
       </div>
     </footer>

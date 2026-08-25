@@ -41,6 +41,13 @@ export interface Profile {
   custom_fields?: Record<string, string>
 }
 
+/** An AMTPS wing (sub-group) defined by a super admin in Settings. */
+export interface AmtpsWing {
+  id: string
+  name: string
+  display_order: number
+}
+
 /** An AMTPS display card added by a super admin (no login account). */
 export interface AmtpsMember {
   id: string
@@ -58,6 +65,7 @@ export interface AmtpsMember {
   linkedin: string | null
   contact_email: string | null
   display_order?: number
+  wing?: string | null
   created_at: string
   updated_at: string
 }
@@ -157,7 +165,9 @@ export interface PlatformSettings {
   signup_email_otp: boolean
   allow_password_reset: boolean
   stop_dynamic_qr: boolean
+  use_attendance_realtime: boolean
   amtps_mode: boolean
+  amtps_wings: AmtpsWing[]
   updated_by: string | null
   updated_at?: string
 }

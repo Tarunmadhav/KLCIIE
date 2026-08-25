@@ -52,7 +52,7 @@ export default function MemberQrPage() {
   // When the admin enables "Stop dynamic QR", codes never rotate — the same
   // QR stays valid until scanned, with no countdown or auto-refresh.
   const staticQr = settings.stop_dynamic_qr
-  const logoUrl = branding.qr_attendance_logo_url ?? branding.ciie_logo_url ?? '/logo.jpg'
+  const logoUrl = branding.qr_attendance_logo_url ?? branding.ciie_logo_url ?? '/logo.png'
   const [rows, setRows] = useState<RegisteredEvent[]>([])
   const [eventId, setEventId] = useState('')
   const [qrInfo, setQrInfo] = useState<QrInfo | null>(null)
@@ -146,7 +146,7 @@ export default function MemberQrPage() {
   )
 
   useEffect(() => {
-    if (!eventId) return
+    if (!eventId || !settings.use_attendance_realtime) return
     const channel = supabase
       .channel(`member-qr-live-${eventId}`)
       .on(
@@ -158,7 +158,7 @@ export default function MemberQrPage() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [eventId, refreshQr])
+  }, [eventId, refreshQr, settings.use_attendance_realtime])
 
   // Rotating QR engine: while the event is live, re-poll every few seconds so
   // the server rotates the code and the screen always shows the current one.

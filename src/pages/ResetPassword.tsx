@@ -104,8 +104,8 @@ export default function ResetPassword() {
         <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-red-100 text-red-600">
           <ShieldOff size={24} />
         </div>
-        <h1 className="text-xl font-bold text-slate-900">Password reset unavailable</h1>
-        <p className="mt-2 text-sm text-slate-500">
+        <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">Password reset unavailable</h1>
+        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
           Self-service password reset is currently disabled. Please contact CIIE support to change your password.
         </p>
         <Link to="/login" className="btn-primary mt-6 inline-flex w-full items-center justify-center">
@@ -121,8 +121,8 @@ export default function ResetPassword() {
         <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-green-100 text-green-600">
           <MailCheck size={24} />
         </div>
-        <h1 className="text-xl font-bold text-slate-900">Password updated</h1>
-        <p className="mt-2 text-sm text-slate-500">
+        <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">Password updated</h1>
+        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
           Your password has been changed and all other sessions were logged out. Log in with your new password.
         </p>
         <Link to="/login" className="btn-primary mt-6 inline-flex w-full items-center justify-center">
@@ -138,8 +138,8 @@ export default function ResetPassword() {
         <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-100 text-primary-600">
           <ShieldCheck size={24} />
         </div>
-        <h1 className="text-xl font-bold text-slate-900">Reset your password</h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">Reset your password</h1>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           {step === 'email'
             ? 'Enter your account email — we will send you a verification code.'
             : `Enter the code sent to ${email.trim()} and choose a new password.`}
@@ -209,10 +209,10 @@ export default function ResetPassword() {
             {busy ? <Spinner className="border-white/40 border-t-white" /> : 'Set new password'}
           </Button>
           <div className="flex items-center justify-between text-xs">
-            <button type="button" className="font-medium text-primary-600 hover:underline disabled:text-slate-400" disabled={cooldown > 0 || busy} onClick={() => void resend()}>
+            <button type="button" className="font-medium text-primary-600 hover:underline disabled:text-slate-400 dark:disabled:text-slate-400" disabled={cooldown > 0 || busy} onClick={() => void resend()}>
               {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
             </button>
-            <Link to="/login" className="font-medium text-slate-500 hover:underline">
+            <Link to="/login" className="font-medium text-slate-500 dark:text-slate-400 hover:underline">
               Back to login
             </Link>
           </div>
@@ -220,7 +220,7 @@ export default function ResetPassword() {
       )}
 
       {step === 'email' && (
-        <p className="mt-6 text-center text-sm text-slate-500">
+        <p className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
           Remembered it?{' '}
           <Link to="/login" className="font-semibold text-primary-600 hover:underline">
             Log in

@@ -51,7 +51,7 @@ export default function AdminDashboard() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-extrabold text-slate-900">Admin Dashboard</h1>
+      <h1 className="mb-6 text-2xl font-extrabold text-slate-900 dark:text-slate-100">Admin Dashboard</h1>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((c) => (
@@ -59,16 +59,16 @@ export default function AdminDashboard() {
             <span className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${c.tone}`}>
               <c.icon size={18} />
             </span>
-            <p className="text-2xl font-extrabold text-slate-900">{c.value}</p>
-            <p className="text-xs text-slate-500">{c.label}</p>
+            <p className="text-2xl font-extrabold text-slate-900 dark:text-slate-100">{c.value}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">{c.label}</p>
           </div>
         ))}
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <div className="card overflow-hidden">
-          <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
-            <h2 className="flex items-center gap-2 font-bold text-slate-900">
+          <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 px-5 py-3">
+            <h2 className="flex items-center gap-2 font-bold text-slate-900 dark:text-slate-100">
               <Crown size={16} className="text-amber-500" /> Top CIIE Members
             </h2>
             <Link to="/admin/members" className="text-sm font-semibold text-primary-600 hover:underline">
@@ -76,15 +76,15 @@ export default function AdminDashboard() {
             </Link>
           </div>
           {top.length === 0 ? (
-            <p className="p-6 text-center text-sm text-slate-500">No points awarded yet.</p>
+            <p className="p-6 text-center text-sm text-slate-500 dark:text-slate-400">No points awarded yet.</p>
           ) : (
             <div className="divide-y divide-slate-100">
               {top.map((m, i) => (
                 <Link key={m.member_id} to={`/admin/members/${m.member_id}`} className="flex items-center justify-between px-5 py-3 transition hover:bg-slate-50">
                   <div className="flex items-center gap-3">
-                    <span className="w-5 text-sm font-bold text-slate-400">{i + 1}</span>
+                    <span className="w-5 text-sm font-bold text-slate-400 dark:text-slate-500">{i + 1}</span>
                     <Avatar name={m.full_name} src={m.avatar_url} className="h-8 w-8 text-xs" />
-                    <span className="text-sm font-semibold text-slate-800">{m.full_name}</span>
+                    <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">{m.full_name}</span>
                   </div>
                   <span className="font-extrabold text-primary-700">{m.total_points}</span>
                 </Link>
@@ -94,7 +94,7 @@ export default function AdminDashboard() {
         </div>
 
         <div className="card p-5">
-          <h2 className="flex items-center gap-2 font-bold text-slate-900">
+          <h2 className="flex items-center gap-2 font-bold text-slate-900 dark:text-slate-100">
             <Award size={16} className="text-primary-600" /> Quick Actions
           </h2>
           <div className="mt-4 grid gap-2">

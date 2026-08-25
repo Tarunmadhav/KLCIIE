@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from '@/hooks/useAuth'
 import { BrandingProvider } from '@/hooks/useBranding'
 import { SettingsProvider } from '@/hooks/useSettings'
+import { ThemeProvider } from '@/hooks/useTheme'
 import { RequireAdmin, RequireAuth, RequireCiiieMember, RequireFaculty, RequireSuperAdmin, MfaResetWatcher } from '@/components/guards'
 import { AuthLayout, PublicLayout } from '@/components/Layouts'
 import OfflineIndicator from '@/components/OfflineIndicator'
@@ -104,6 +105,7 @@ export default function App() {
   return (
     <BrandingProvider>
       <SettingsProvider>
+        <ThemeProvider>
         <AuthProvider>
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <OfflineIndicator />
@@ -226,7 +228,8 @@ export default function App() {
           </Suspense>
           </RouteErrorBoundary>
         </BrowserRouter>
-      </AuthProvider>
+        </AuthProvider>
+        </ThemeProvider>
       </SettingsProvider>
     </BrandingProvider>
   )

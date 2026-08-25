@@ -192,7 +192,7 @@ export default function AdminLayout() {
   )
 
   return (
-    <div className="min-h-screen bg-slate-100">
+    <div className="min-h-screen bg-slate-100 dark:bg-slate-950">
       {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 lg:block">{sidebar}</aside>
 
@@ -205,14 +205,14 @@ export default function AdminLayout() {
       )}
 
       <div className="lg:pl-64">
-        <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-slate-200 bg-white/90 px-4 backdrop-blur lg:px-8">
-          <button className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 lg:hidden" onClick={() => setOpen(true)}>
+        <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-slate-200 bg-white/90 px-4 backdrop-blur lg:px-8 dark:border-slate-700 dark:bg-slate-900/90">
+          <button className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 lg:hidden dark:text-slate-400 dark:hover:bg-slate-800" onClick={() => setOpen(true)}>
             <Menu size={20} />
           </button>
-          <Link to="/" className="text-sm font-medium text-slate-500 hover:text-primary-600">
+          <Link to="/" className="text-sm font-medium text-slate-500 hover:text-primary-600 dark:text-slate-400 dark:hover:text-primary-400">
             ← View public site
           </Link>
-          <span className="text-xs text-slate-400">Admin console · MFA protected</span>
+          <span className="text-xs text-slate-400 dark:text-slate-500">Admin console · MFA protected</span>
         </header>
         <main className="px-4 py-6 lg:px-8">
           <Outlet />

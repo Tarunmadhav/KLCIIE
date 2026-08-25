@@ -40,11 +40,11 @@ interface Privacy {
 function InfoRow({ icon, label, value }: { icon?: ReactNode; label: string; value: ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-3 py-1.5">
-      <span className="flex items-center gap-2 text-sm text-slate-400">
+      <span className="flex items-center gap-2 text-sm text-slate-400 dark:text-slate-500">
         {icon && <span className="mt-0.5 text-slate-300">{icon}</span>}
         {label}
       </span>
-      <span className="text-right text-sm font-medium text-slate-700">{value}</span>
+      <span className="text-right text-sm font-medium text-slate-700 dark:text-slate-300">{value}</span>
     </div>
   )
 }
@@ -53,7 +53,7 @@ function SectionCard({ title, icon, action, children }: { title: string; icon?: 
   return (
     <div className="card p-5">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-500">
+        <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
           {icon && <span className="text-primary-600">{icon}</span>}
           {title}
         </h2>
@@ -308,7 +308,7 @@ export default function MemberDetailAdmin() {
             <Button variant="secondary" onClick={toggleStatus} disabled={busy} className="!bg-white/10 !text-white hover:!bg-white/20">
               {member.status === 'active' ? 'Disable account' : 'Enable account'}
             </Button>
-            <p className="text-xs text-slate-400">Member since {formatDate(member.created_at)}</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500">Member since {formatDate(member.created_at)}</p>
           </div>
         </div>
       </div>
@@ -317,8 +317,8 @@ export default function MemberDetailAdmin() {
         {statCards.map((s) => (
           <div key={s.label} className="card flex flex-col items-center gap-1 p-4 text-center">
             <span className="text-primary-600">{s.icon}</span>
-            <p className="text-xl font-extrabold text-slate-900">{s.value}</p>
-            <p className="text-[11px] text-slate-500">{s.label}</p>
+            <p className="text-xl font-extrabold text-slate-900 dark:text-slate-100">{s.value}</p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">{s.label}</p>
           </div>
         ))}
       </div>
@@ -350,16 +350,16 @@ export default function MemberDetailAdmin() {
             </div>
             {member.bio && (
               <div className="mt-4 border-t border-slate-100 pt-4">
-                <p className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-400">Bio</p>
-                <p className="text-sm leading-relaxed text-slate-600">{member.bio}</p>
+                <p className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500">Bio</p>
+                <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-400">{member.bio}</p>
               </div>
             )}
             {member.skills?.length > 0 && (
               <div className="mt-4 border-t border-slate-100 pt-4">
-                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-400">Skills</p>
+                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500">Skills</p>
                 <div className="flex flex-wrap gap-1.5">
                   {member.skills.map((s) => (
-                    <span key={s} className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">{s}</span>
+                    <span key={s} className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-400">{s}</span>
                   ))}
                 </div>
               </div>
@@ -368,11 +368,11 @@ export default function MemberDetailAdmin() {
 
           <SectionCard title="Social links" icon={<Send size={15} />}>
             {socials.length === 0 ? (
-              <p className="text-sm text-slate-400">No social links added.</p>
+              <p className="text-sm text-slate-400 dark:text-slate-500">No social links added.</p>
             ) : (
               <div className="grid grid-cols-2 gap-2">
                 {socials.map((s) => (
-                  <a key={s.label} href={s.href} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700">
+                  <a key={s.label} href={s.href} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 dark:border-slate-700 dark:text-slate-300 transition hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700">
                     <span className="text-primary-600">{s.icon}</span> {s.label}
                   </a>
                 ))}
@@ -427,7 +427,7 @@ export default function MemberDetailAdmin() {
             icon={<Medal size={15} />}
             action={<Badge tone="primary">{stats?.achievements ?? 0}</Badge>}
           >
-            <form onSubmit={addAchievement} className="mb-4 space-y-3 rounded-xl bg-slate-50 p-4">
+            <form onSubmit={addAchievement} className="mb-4 space-y-3 rounded-xl bg-slate-50 p-4 dark:bg-slate-950">
               <Field label="Title">
                 <TextInput required value={achTitle} onChange={(e) => setAchTitle(e.target.value)} placeholder="e.g. Winner — Hackathon 2026" />
               </Field>
@@ -443,14 +443,14 @@ export default function MemberDetailAdmin() {
             </form>
             <div className="space-y-2">
               {achievements.length === 0 ? (
-                <p className="text-sm text-slate-400">No achievements yet.</p>
+                <p className="text-sm text-slate-400 dark:text-slate-500">No achievements yet.</p>
               ) : (
                 achievements.map((a) => (
-                  <div key={a.id} className="flex items-start justify-between gap-3 rounded-xl border border-slate-200 px-3 py-2.5">
+                  <div key={a.id} className="flex items-start justify-between gap-3 rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700">
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-slate-800">{a.title}</p>
-                      <p className="text-xs text-slate-400">{a.category} • {formatDate(a.achieved_on)}</p>
-                      {a.description && <p className="mt-0.5 text-xs text-slate-500">{a.description}</p>}
+                      <p className="text-xs text-slate-400 dark:text-slate-500">{a.category} • {formatDate(a.achieved_on)}</p>
+                      {a.description && <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{a.description}</p>}
                     </div>
                     <button className="shrink-0 text-xs font-medium text-red-500 hover:underline" onClick={() => removeAchievement(a)}>
                       Remove
@@ -463,11 +463,11 @@ export default function MemberDetailAdmin() {
 
           <SectionCard title="Events worked" icon={<Briefcase size={15} />} action={<Badge tone="primary">{worked.length}</Badge>}>
             {worked.length === 0 ? (
-              <p className="text-sm text-slate-400">No event team assignments.</p>
+              <p className="text-sm text-slate-400 dark:text-slate-500">No event team assignments.</p>
             ) : (
               <div className="space-y-2">
                 {worked.map((w) => (
-                  <div key={`${w.event_id}-${w.role_name}`} className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 px-3 py-2">
+                  <div key={`${w.event_id}-${w.role_name}`} className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-700">
                     <Link to={`/admin/events/${w.event_id}`} className="truncate text-sm font-medium text-primary-600 hover:underline">
                       {w.title}
                     </Link>
@@ -482,7 +482,7 @@ export default function MemberDetailAdmin() {
         <div className="space-y-5">
           <SectionCard title="Points history" icon={<Wallet size={15} />} action={<Badge tone="primary">{txs.length}</Badge>}>
             {txs.length === 0 ? (
-              <p className="text-sm text-slate-400">No points transactions.</p>
+              <p className="text-sm text-slate-400 dark:text-slate-500">No points transactions.</p>
             ) : (
               <div className="max-h-96 divide-y divide-slate-100 overflow-y-auto pr-1">
                 {txs.map((tx) => {
@@ -490,8 +490,8 @@ export default function MemberDetailAdmin() {
                   return (
                     <div key={tx.id} className="flex items-center justify-between gap-2 py-2.5">
                       <div className="min-w-0">
-                        <p className="truncate text-sm text-slate-700">{tx.description ?? tx.activity_type}</p>
-                        <p className="text-[10px] text-slate-400">
+                        <p className="truncate text-sm text-slate-700 dark:text-slate-300">{tx.description ?? tx.activity_type}</p>
+                        <p className="text-[10px] text-slate-400 dark:text-slate-500">
                           {tx.activity_type} • {formatDate(tx.created_at)}
                           {awarder ? ` • by ${awarder}` : ''}
                         </p>
@@ -510,7 +510,7 @@ export default function MemberDetailAdmin() {
               <InfoRow label="Events attended" value={stats?.events_attended ?? 0} />
               <InfoRow label="Volunteer activities" value={stats?.volunteer_activities ?? 0} />
             </div>
-            <div className="mt-3 flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2.5 text-xs text-slate-500">
+            <div className="mt-3 flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2.5 text-xs text-slate-500 dark:bg-slate-950 dark:text-slate-400">
               <Users size={14} className="shrink-0 text-primary-600" />
               Full activity history for this member is managed under Events & Attendance.
             </div>
@@ -608,7 +608,7 @@ export default function MemberDetailAdmin() {
               <Pencil size={15} /> Save changes
             </Button>
           </div>
-          <p className="text-center text-xs text-slate-400">
+          <p className="text-center text-xs text-slate-400 dark:text-slate-500">
             Email, CIIE ID, role and account status are managed from their dedicated pages.
           </p>
         </form>

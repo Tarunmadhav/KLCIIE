@@ -20,7 +20,7 @@ const socialBrands: Record<string, string> = {
   Facebook: 'hover:border-[#1877F2] hover:bg-[#1877F2]/5 hover:text-[#1877F2]',
   Instagram: 'hover:border-[#E4405F] hover:bg-[#E4405F]/5 hover:text-[#E4405F]',
   LinkedIn: 'hover:border-[#0A66C2] hover:bg-[#0A66C2]/5 hover:text-[#0A66C2]',
-  Twitter: 'hover:border-slate-400 hover:bg-slate-100 hover:text-slate-900',
+  Twitter: 'hover:border-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100',
   YouTube: 'hover:border-[#FF0000] hover:bg-[#FF0000]/5 hover:text-[#FF0000]',
 }
 
@@ -93,7 +93,7 @@ export default function Contact() {
           <Reveal delay={360}>
             <a
               href={`mailto:${settings.contact_email ?? 'ciie@kluniversity.in'}`}
-              className="mt-8 inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-bold text-slate-900 shadow-[0_0_36px_rgba(139,92,246,0.5)] transition hover:-translate-y-0.5 hover:shadow-[0_0_48px_rgba(139,92,246,0.7)]"
+              className="mt-8 inline-flex items-center gap-2 rounded-full bg-white dark:bg-slate-900 px-6 py-3 text-sm font-bold text-slate-900 dark:text-slate-100 shadow-[0_0_36px_rgba(139,92,246,0.5)] transition hover:-translate-y-0.5 hover:shadow-[0_0_48px_rgba(139,92,246,0.7)]"
             >
               <Send size={15} /> Send us a message
             </a>
@@ -112,7 +112,7 @@ export default function Contact() {
                 >
                   <card.icon size={24} />
                 </div>
-                <h3 className="font-display text-lg font-bold text-slate-900">{card.title}</h3>
+                <h3 className="font-display text-lg font-bold text-slate-900 dark:text-slate-100">{card.title}</h3>
                 {card.href ? (
                   <a
                     href={card.href}
@@ -121,9 +121,9 @@ export default function Contact() {
                     {card.value}
                   </a>
                 ) : (
-                  <p className="mt-1.5 break-words text-sm font-medium text-slate-600">{card.value}</p>
+                  <p className="mt-1.5 break-words text-sm font-medium text-slate-600 dark:text-slate-400">{card.value}</p>
                 )}
-                <p className="mt-3 inline-flex items-center gap-1.5 text-xs text-slate-400">
+                <p className="mt-3 inline-flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
                   <Clock size={12} /> {card.hint}
                 </p>
               </div>
@@ -134,7 +134,7 @@ export default function Contact() {
 
       {/* SOCIALS */}
       {socials.length > 0 && (
-        <section className="relative overflow-hidden bg-white py-16">
+        <section className="relative overflow-hidden bg-white dark:bg-slate-900 py-16">
           <div aria-hidden className="pointer-events-none absolute inset-0">
             <div className="animate-orb-1 absolute -top-24 left-1/4 h-[20rem] w-[20rem] rounded-full bg-primary-200/50 blur-3xl" />
             <div className="animate-orb-2 absolute -bottom-24 right-1/4 h-[20rem] w-[20rem] rounded-full bg-emerald-200/50 blur-3xl" />
@@ -146,10 +146,10 @@ export default function Contact() {
                 <span className="inline-flex items-center gap-2 rounded-full bg-primary-100 px-3 py-1 text-xs font-bold uppercase tracking-widest text-primary-700">
                   <Sparkles size={13} /> Stay connected
                 </span>
-                <h2 className="mt-3 font-display text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
+                <h2 className="mt-3 font-display text-3xl font-black tracking-tight text-slate-900 dark:text-slate-100 sm:text-4xl">
                   Follow <span className="text-gradient">CIIE</span>
                 </h2>
-                <p className="mt-3 text-sm text-slate-500">
+                <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
                   Stay updated on events, announcements and opportunities across our social channels.
                 </p>
               </div>
@@ -162,7 +162,7 @@ export default function Contact() {
                     href={s.url!}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-lg ${socialBrands[s.label] ?? 'hover:border-primary-300 hover:text-primary-700'}`}
+                    className={`inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-5 py-3 text-sm font-semibold text-slate-700 dark:text-slate-300 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-lg ${socialBrands[s.label] ?? 'hover:border-primary-300 hover:text-primary-700'}`}
                   >
                     <s.icon size={17} /> {s.label}
                   </a>
