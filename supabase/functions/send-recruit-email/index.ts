@@ -1,7 +1,7 @@
 // ============================================================================
 // KL CIIE — send-recruit-email
 //
-// Sends emails through a pool of up to 10 Gmail SMTP accounts managed by the
+// Sends emails through a pool of Gmail SMTP accounts managed by the
 // Super Admin in the Admin panel (/admin/smtp). The credentials live in the
 // public.smtp_settings table (super-admin MFA-gated), NOT in env secrets.
 //
@@ -12,9 +12,8 @@
 // evenly across all configured Gmail accounts. Failover still applies within
 // one send: if the chosen account fails, the remaining accounts are tried in
 // rotated order and the user only sees an error when every account failed.
-// If 1 or 2 accounts are configured, only those are used. When no accounts
-// are configured the function falls back to SMTP_HOST / SMTP_USER / SMTP_PASS /
-// SMTP_FROM env secrets (legacy, e.g. `npx supabase secrets set --env-file .env`).
+// When no accounts are configured the function falls back to SMTP_HOST /
+// SMTP_USER / SMTP_PASS / SMTP_FROM env secrets (legacy).
 //
 // Kinds:
 //   * kind = 'join-verification' — the anonymous "Join CIIE" flow. No JWT is
@@ -107,7 +106,6 @@ async function loadSmtpAccounts(admin: ReturnType<typeof createClient>): Promise
     .eq("is_active", true)
     .order("position", { ascending: true })
     .order("created_at", { ascending: true })
-    .limit(10)
 
   if (data && data.length > 0) {
     return data.map((r) => ({

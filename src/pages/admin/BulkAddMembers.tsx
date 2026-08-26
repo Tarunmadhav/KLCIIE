@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   CheckCircle2,
   ClipboardCopy,
@@ -21,6 +21,7 @@ import { cn, digitsOnly, emailInvokeMessage, errorMessage } from '@/lib/utils'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const CHUNK_SIZE = 15
+const STORAGE_KEY = 'ciie_bulk_add_state'
 
 type Phase = 'upload' | 'preview' | 'working' | 'done'
 
@@ -40,8 +41,17 @@ interface ResultRow extends ParsedRow {
   password?: string
   mailStatus?: 'sent' | 'failed'
   mailUsed?: string
+  mailError?: string
   resultError?: string
   role?: string
+}
+
+interface SavedState {
+  phase: Phase
+  results: ResultRow[]
+  fileName: string
+  importRole: string
+  timestamp: number
 }
 
 const IMPORTABLE_ROLES = ['user', 'member', 'member_ciie', 'faculty'] as const
@@ -73,19 +83,48 @@ function mapHeaders(headers: string[]): Record<string, string> {
   return map
 }
 
+function loadSavedState(): SavedState | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as SavedState
+    if (parsed.phase === 'working') {
+      parsed.phase = 'done'
+    }
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function saveState(phase: Phase, results: ResultRow[], fileName: string, importRole: string) {
+  try {
+    const state: SavedState = { phase, results, fileName, importRole, timestamp: Date.now() }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+  } catch { /* quota exceeded or private browsing — ignore */ }
+}
+
+function clearSavedState() {
+  try { localStorage.removeItem(STORAGE_KEY) } catch { /* ignore */ }
+}
+
 export default function BulkAddMembers() {
-  const [phase, setPhase] = useState<Phase>('upload')
+  const saved = loadSavedState()
+
+  const [phase, setPhase] = useState<Phase>(saved?.phase === 'done' ? 'done' : 'upload')
   const [rows, setRows] = useState<ParsedRow[]>([])
-  const [fileName, setFileName] = useState('')
+  const [fileName, setFileName] = useState(saved?.phase === 'done' ? (saved.fileName ?? '') : '')
   const [parseError, setParseError] = useState('')
   const [confirmOpen, setConfirmOpen] = useState(false)
-  const [importRole, setImportRole] = useState<(typeof IMPORTABLE_ROLES)[number]>('user')
+  const [importRole, setImportRole] = useState<(typeof IMPORTABLE_ROLES)[number]>((saved?.importRole as (typeof IMPORTABLE_ROLES)[number]) ?? 'user')
 
   const [stage, setStage] = useState<'create' | 'mail'>('create')
   const [progress, setProgress] = useState({ done: 0, total: 0 })
-  const [results, setResults] = useState<ResultRow[]>([])
+  const [results, setResults] = useState<ResultRow[]>(saved?.phase === 'done' ? (saved.results ?? []) : [])
   const [showPasswords, setShowPasswords] = useState(true)
   const [copied, setCopied] = useState(false)
+  const [exitConfirmOpen, setExitConfirmOpen] = useState(false)
+  const [exitConfirmStep, setExitConfirmStep] = useState(0)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const validRows = useMemo(() => rows.filter((r) => !r.error), [rows])
@@ -94,6 +133,27 @@ export default function BulkAddMembers() {
   const created = useMemo(() => results.filter((r) => r.status === 'created'), [results])
   const mailSent = created.filter((r) => r.mailStatus === 'sent').length
   const mailFailed = created.filter((r) => r.mailStatus === 'failed').length
+
+  // Persist to localStorage whenever results change in done phase
+  useEffect(() => {
+    if (phase === 'done' && results.length > 0) {
+      saveState('done', results, fileName, importRole)
+    }
+  }, [phase, results, fileName, importRole])
+
+  // Network reconnect: reload saved state
+  useEffect(() => {
+    const handleOnline = () => {
+      const reloaded = loadSavedState()
+      if (reloaded?.phase === 'done' && reloaded.results.length > 0) {
+        setResults(reloaded.results)
+        setFileName(reloaded.fileName ?? '')
+        setPhase('done')
+      }
+    }
+    window.addEventListener('online', handleOnline)
+    return () => window.removeEventListener('online', handleOnline)
+  }, [])
 
   const parseFile = useCallback(async (file: File) => {
     setParseError('')
@@ -143,7 +203,6 @@ export default function BulkAddMembers() {
         return { index: i + 1, fullName, email, studentId, department, yearOfStudy, phone, error }
       })
 
-      // Flag rows that collide with accounts that already exist.
       const { data: existing } = await supabase.from('profiles').select('email, student_id')
       const dbEmails = new Set((existing ?? []).map((p) => String(p.email ?? '').trim().toLowerCase()))
       const dbIds = new Set((existing ?? []).map((p) => digitsOnly(p.student_id)))
@@ -161,8 +220,6 @@ export default function BulkAddMembers() {
     }
   }, [])
 
-  // Invoke one chunk; transient network failures ("Failed to send a request…")
-  // are retried automatically — cold edge runtime / momentary blips recover.
   const invokeChunk = async (body: Record<string, unknown>) => {
     let lastError = ''
     for (let attempt = 0; attempt < 3; attempt++) {
@@ -215,6 +272,7 @@ export default function BulkAddMembers() {
         for (const r of chunk) out.push({ ...r, status: 'failed', role: importRole, resultError: errorMessage(err) })
       }
       setProgress({ done: Math.min(i + CHUNK_SIZE, validRows.length), total: validRows.length })
+      setResults([...out])
     }
 
     const mailList = out.filter((r) => r.status === 'created')
@@ -222,20 +280,20 @@ export default function BulkAddMembers() {
     setProgress({ done: 0, total: mailList.length })
     let mailed = 0
     for (const r of mailList) {
-      const used = await sendWelcomeMail(r)
-      r.mailStatus = used ? 'sent' : 'failed'
-      if (used) r.mailUsed = used
+      const { account, error: mailErr } = await sendWelcomeMail(r)
+      r.mailStatus = account ? 'sent' : 'failed'
+      if (account) r.mailUsed = account
+      if (mailErr) r.mailError = mailErr
       mailed += 1
       setProgress({ done: mailed, total: mailList.length })
+      setResults([...out])
     }
 
     setResults(out)
     setPhase('done')
   }
 
-  // Sends the welcome email; resolves to the SMTP account (sender address)
-  // that actually delivered it, or null when the send failed.
-  const sendWelcomeMail = async (r: ResultRow): Promise<string | null> => {
+  const sendWelcomeMail = async (r: ResultRow): Promise<{ account: string | null; error: string | null }> => {
     const loginUrl = `${window.location.origin}/login`
     const text =
       `Hi ${r.fullName},\n\n` +
@@ -263,19 +321,32 @@ export default function BulkAddMembers() {
       const { data, error } = await supabase.functions.invoke('send-recruit-email', {
         body: { to_email: r.email, subject: 'Your KL CIIE account', text, html },
       })
-      if (error) return null
+      if (error) {
+        const msg = await emailInvokeMessage(error)
+        return { account: null, error: msg }
+      }
       const account = (data as { account?: string } | null)?.account
-      return typeof account === 'string' && account ? account : 'unknown sender'
-    } catch {
-      return null
+      return { account: typeof account === 'string' && account ? account : 'unknown sender', error: null }
+    } catch (e) {
+      return { account: null, error: errorMessage(e) }
     }
   }
 
   const resendMail = async (row: ResultRow) => {
-    const used = await sendWelcomeMail(row)
-    setResults((prev) =>
-      prev.map((r) => (r.index === row.index ? { ...r, mailStatus: used ? 'sent' : 'failed', mailUsed: used ?? r.mailUsed } : r)),
-    )
+    const { account, error: mailErr } = await sendWelcomeMail(row)
+    setResults((prev) => {
+      const next = prev.map((r) => {
+        if (r.index !== row.index) return r
+        return {
+          ...r,
+          mailStatus: (account ? 'sent' : 'failed') as 'sent' | 'failed',
+          mailUsed: account ?? r.mailUsed,
+          mailError: mailErr ?? undefined,
+        }
+      })
+      if (phase === 'done') saveState('done', next, fileName, importRole)
+      return next
+    })
   }
 
   const downloadTemplate = async () => {
@@ -307,9 +378,21 @@ export default function BulkAddMembers() {
         Phone: r.phone,
         EmailStatus: r.mailStatus === 'sent' ? 'sent' : r.mailStatus === 'failed' ? 'failed' : '',
         'Mail Used': r.mailStatus === 'sent' ? r.mailUsed ?? '' : 'Not sent',
+        'Mail Error': r.mailError ?? '',
       })),
       'Credentials',
     )
+  }
+
+  const handleExit = () => {
+    clearSavedState()
+    setPhase('upload')
+    setRows([])
+    setResults([])
+    setFileName('')
+    setExitConfirmOpen(false)
+    setExitConfirmStep(0)
+    if (fileRef.current) fileRef.current.value = ''
   }
 
   return (
@@ -395,7 +478,7 @@ export default function BulkAddMembers() {
                 <li>You review every person from the sheet before anything is created.</li>
                 <li>Each member gets a login account with a random password.</li>
                 <li>Welcome emails (email + name + password) are sent automatically.</li>
-                <li>Gmail SMTP accounts rotate per email — mail #1 via account #1, mail #2 via account #2 … looping.</li>
+                <li>If one SMTP fails, the next one is tried automatically until one works.</li>
               </ol>
             </div>
           </div>
@@ -482,6 +565,19 @@ export default function BulkAddMembers() {
               {stage === 'mail' && progress.total === 0 && '— no accounts were created, skipping emails.'}
             </p>
           </div>
+
+          <div className="mt-6 flex justify-center">
+            <Button
+              variant="secondary"
+              className="border-amber-300 text-amber-700 hover:bg-amber-50"
+              onClick={() => {
+                setExitConfirmStep(1)
+                setExitConfirmOpen(true)
+              }}
+            >
+              Load New List
+            </Button>
+          </div>
         </div>
       )}
 
@@ -497,13 +593,14 @@ export default function BulkAddMembers() {
           {mailFailed > 0 && (
             <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
               Some welcome emails failed (SMTP issue or rate limit). Use the resend button next to those members below —
-              account creation itself succeeded for every “Created” row.
+              account creation itself succeeded for every "Created" row.
             </p>
           )}
           <p className="flex items-start gap-2 rounded-xl bg-primary-50 px-4 py-3 text-sm text-primary-800">
             <Info size={16} className="mt-0.5 shrink-0" />
             Passwords are shown here only while this page is open — they cannot be recovered later. Download the Excel
-            file below to keep a permanent record.
+            file below to keep a permanent record. Your results are saved locally so refreshing this page will restore
+            them.
           </p>
 
           <div className="card p-6">
@@ -523,7 +620,7 @@ export default function BulkAddMembers() {
             </div>
 
             <div className="max-h-[32rem] overflow-auto rounded-xl border border-slate-200">
-              <table className="w-full min-w-[56rem] text-left text-sm">
+              <table className="w-full min-w-[60rem] text-left text-sm">
                 <thead className="sticky top-0 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                   <tr>
                     <th className="px-3 py-2">#</th>
@@ -533,7 +630,8 @@ export default function BulkAddMembers() {
                     <th className="px-3 py-2">Password</th>
                     <th className="px-3 py-2">Account</th>
                     <th className="px-3 py-2">Mail used</th>
-                    <th className="px-3 py-2">Mail</th>
+                    <th className="px-3 py-2">Mail status</th>
+                    <th className="px-3 py-2">Mail error</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -550,7 +648,7 @@ export default function BulkAddMembers() {
                         {r.status === 'created' ? (
                           <Badge tone="green">Created</Badge>
                         ) : (
-                          <Badge tone="red" className="max-w-56 truncate" >
+                          <Badge tone="red" className="max-w-56 truncate">
                             <XCircle size={12} /> {r.resultError}
                           </Badge>
                         )}
@@ -563,18 +661,29 @@ export default function BulkAddMembers() {
                           <span className="text-xs text-slate-400">—</span>
                         ) : r.mailStatus === 'sent' ? (
                           <Badge tone="green"><MailCheck size={12} /> Sent</Badge>
+                        ) : r.mailStatus === 'failed' ? (
+                          <Badge tone="red">Failed</Badge>
                         ) : (
-                          <span className="inline-flex items-center gap-2">
-                            <Badge tone="red">Failed</Badge>
-                            <button
-                              className="inline-flex items-center gap-1 rounded-lg p-1 text-primary-600 hover:bg-primary-50"
-                              title="Resend welcome email"
-                              onClick={() => void resendMail(r)}
-                            >
-                              <RotateCcw size={13} />
-                            </button>
-                          </span>
+                          <span className="text-xs text-slate-400">—</span>
                         )}
+                      </td>
+                      <td className="px-3 py-2 max-w-48">
+                        {r.status === 'created' && r.mailStatus === 'failed' && r.mailError ? (
+                          <span className="text-xs text-red-600 truncate block" title={r.mailError}>{r.mailError}</span>
+                        ) : (
+                          <span className="text-xs text-slate-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2">
+                        {r.status === 'created' && r.mailStatus === 'failed' ? (
+                          <button
+                            className="inline-flex items-center gap-1 rounded-lg bg-primary-50 px-2 py-1 text-xs font-medium text-primary-700 hover:bg-primary-100"
+                            title="Resend welcome email"
+                            onClick={() => void resendMail(r)}
+                          >
+                            <RotateCcw size={12} /> Resend
+                          </button>
+                        ) : null}
                       </td>
                     </tr>
                   ))}
@@ -586,19 +695,19 @@ export default function BulkAddMembers() {
           <div className="flex flex-wrap gap-3">
             <Button
               variant="secondary"
+              className="border-amber-300 text-amber-700 hover:bg-amber-50"
               onClick={() => {
-                setPhase('upload')
-                setRows([])
-                setResults([])
-                setFileName('')
+                setExitConfirmStep(1)
+                setExitConfirmOpen(true)
               }}
             >
-              Import another batch
+              Load New List
             </Button>
           </div>
         </>
       )}
 
+      {/* Create confirmation */}
       <Modal
         open={confirmOpen}
         onClose={() => setConfirmOpen(false)}
@@ -621,9 +730,68 @@ export default function BulkAddMembers() {
             <strong className="text-slate-900">{ROLE_LABELS[importRole]}</strong>.
           </li>
           <li>• A welcome email with name, email and password will be sent to each member.</li>
-          <li>• Emails rotate across your configured Gmail SMTP accounts automatically.</li>
+          <li>• Emails rotate across your configured Gmail SMTP accounts with automatic failover.</li>
           <li>• This can take several minutes for large batches — keep this page open.</li>
         </ul>
+      </Modal>
+
+      {/* Exit confirmation step 1 */}
+      <Modal
+        open={exitConfirmOpen && exitConfirmStep === 1}
+        onClose={() => { setExitConfirmOpen(false); setExitConfirmStep(0) }}
+        title="Load a new list?"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => { setExitConfirmOpen(false); setExitConfirmStep(0) }}>
+              Stay here
+            </Button>
+            <Button
+              variant="secondary"
+              className="border-amber-300 text-amber-700 hover:bg-amber-50"
+              onClick={() => setExitConfirmStep(2)}
+            >
+              Continue
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3 text-sm text-slate-600">
+          <p>
+            {phase === 'working'
+              ? 'The current import is still in progress. If you leave now, the remaining accounts will not be created and emails will not be sent.'
+              : 'Your current results will be cleared from this page.'}
+          </p>
+          <p>Are you sure you want to load a new list?</p>
+        </div>
+      </Modal>
+
+      {/* Exit confirmation step 2 */}
+      <Modal
+        open={exitConfirmOpen && exitConfirmStep === 2}
+        onClose={() => { setExitConfirmOpen(false); setExitConfirmStep(0) }}
+        title="Final confirmation"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => { setExitConfirmOpen(false); setExitConfirmStep(0) }}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleExit}
+              className="bg-amber-600 text-white hover:bg-amber-700"
+            >
+              Yes, load new list
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3 text-sm text-slate-600">
+          <p>
+            {phase === 'working'
+              ? 'The current import will be abandoned. Any remaining accounts will not be created.'
+              : 'All results from this batch will be permanently cleared from this page.'}
+          </p>
+          <p>Click the button below to confirm.</p>
+        </div>
       </Modal>
     </div>
   )
