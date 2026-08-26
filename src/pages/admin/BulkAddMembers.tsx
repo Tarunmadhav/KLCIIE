@@ -48,7 +48,11 @@ interface ResultRow extends ParsedRow {
 
 interface SavedState {
   phase: Phase
+  stage?: 'create' | 'mail'
+  processedCount?: number
+  sentMails?: number[]
   results: ResultRow[]
+  validRows?: ParsedRow[]
   fileName: string
   importRole: string
   timestamp: number
@@ -88,9 +92,7 @@ function loadSavedState(): SavedState | null {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw) as SavedState
-    if (parsed.phase === 'working') {
-      parsed.phase = 'done'
-    }
+    if (!parsed.phase) return null
     return parsed
   } catch {
     return null
@@ -108,26 +110,36 @@ function clearSavedState() {
   try { localStorage.removeItem(STORAGE_KEY) } catch { /* ignore */ }
 }
 
+function saveWorkingState(stage: 'create' | 'mail', processedCount: number, results: ResultRow[], sentMails: number[], validRows: ParsedRow[], fileName: string, importRole: string) {
+  try {
+    const state: SavedState = { phase: 'working', stage, processedCount, sentMails, results, validRows, fileName, importRole, timestamp: Date.now() }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+  } catch { /* quota exceeded or private browsing — ignore */ }
+}
+
 export default function BulkAddMembers() {
   const saved = loadSavedState()
+  const hasSavedWorking = saved?.phase === 'working'
 
-  const [phase, setPhase] = useState<Phase>(saved?.phase === 'done' ? 'done' : 'upload')
+  const [phase, setPhase] = useState<Phase>(hasSavedWorking ? 'working' : saved?.phase === 'done' ? 'done' : 'upload')
   const [rows, setRows] = useState<ParsedRow[]>([])
-  const [fileName, setFileName] = useState(saved?.phase === 'done' ? (saved.fileName ?? '') : '')
+  const [fileName, setFileName] = useState(hasSavedWorking ? (saved.fileName ?? '') : saved?.phase === 'done' ? (saved.fileName ?? '') : '')
   const [parseError, setParseError] = useState('')
   const [confirmOpen, setConfirmOpen] = useState(false)
-  const [importRole, setImportRole] = useState<(typeof IMPORTABLE_ROLES)[number]>((saved?.importRole as (typeof IMPORTABLE_ROLES)[number]) ?? 'user')
+  const [importRole, setImportRole] = useState<(typeof IMPORTABLE_ROLES)[number]>((hasSavedWorking ? saved.importRole : saved?.importRole) as (typeof IMPORTABLE_ROLES)[number] ?? 'user')
 
-  const [stage, setStage] = useState<'create' | 'mail'>('create')
+  const [stage, setStage] = useState<'create' | 'mail'>(hasSavedWorking ? (saved.stage ?? 'create') : 'create')
   const [progress, setProgress] = useState({ done: 0, total: 0 })
-  const [results, setResults] = useState<ResultRow[]>(saved?.phase === 'done' ? (saved.results ?? []) : [])
+  const [results, setResults] = useState<ResultRow[]>(hasSavedWorking ? (saved.results ?? []) : saved?.phase === 'done' ? (saved.results ?? []) : [])
   const [showPasswords, setShowPasswords] = useState(true)
   const [copied, setCopied] = useState(false)
   const [exitConfirmOpen, setExitConfirmOpen] = useState(false)
   const [exitConfirmStep, setExitConfirmStep] = useState(0)
+  const [resumeOpen, setResumeOpen] = useState(hasSavedWorking)
+  const [resumed, setResumed] = useState(hasSavedWorking)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const validRows = useMemo(() => rows.filter((r) => !r.error), [rows])
+  const validRows = useMemo(() => resumed ? [] : rows.filter((r) => !r.error), [rows, resumed])
   const invalidCount = rows.length - validRows.length
 
   const created = useMemo(() => results.filter((r) => r.status === 'created'), [results])
@@ -145,7 +157,14 @@ export default function BulkAddMembers() {
   useEffect(() => {
     const handleOnline = () => {
       const reloaded = loadSavedState()
-      if (reloaded?.phase === 'done' && reloaded.results.length > 0) {
+      if (!reloaded) return
+      if (reloaded.phase === 'working') {
+        setResults(reloaded.results ?? [])
+        setFileName(reloaded.fileName ?? '')
+        setStage(reloaded.stage ?? 'create')
+        setResumeOpen(true)
+        setPhase('working')
+      } else if (reloaded.phase === 'done' && reloaded.results.length > 0) {
         setResults(reloaded.results)
         setFileName(reloaded.fileName ?? '')
         setPhase('done')
@@ -154,6 +173,41 @@ export default function BulkAddMembers() {
     window.addEventListener('online', handleOnline)
     return () => window.removeEventListener('online', handleOnline)
   }, [])
+
+  const resumeImport = () => {
+    setResumeOpen(false)
+    setResumed(true)
+    const re = loadSavedState()
+    if (!re || re.phase !== 'working') return
+    setResults(re.results ?? [])
+    setFileName(re.fileName ?? '')
+    setImportRole(re.importRole as (typeof IMPORTABLE_ROLES)[number])
+    setStage(re.stage ?? 'create')
+    setPhase('working')
+    const valid = re.validRows ?? []
+    const processed = re.processedCount ?? 0
+    if (re.stage === 'create') {
+      setProgress({ done: processed, total: valid.length })
+      void runImport(valid, 'create', processed, re.results ?? [])
+    } else {
+      const res = re.results ?? []
+      const createdList = res.filter((r) => r.status === 'created')
+      const sentMails = re.sentMails ?? []
+      const mailed = createdList.filter((r) => sentMails.includes(r.index)).length
+      setProgress({ done: mailed, total: createdList.length })
+      void runImport(valid, 'mail', 0, res, sentMails)
+    }
+  }
+
+  const dismissResume = () => {
+    setResumeOpen(false)
+    setResumed(false)
+    clearSavedState()
+    setPhase('upload')
+    setResults([])
+    setRows([])
+    setFileName('')
+  }
 
   const parseFile = useCallback(async (file: File) => {
     setParseError('')
@@ -234,52 +288,71 @@ export default function BulkAddMembers() {
     )
   }
 
-  const runImport = async () => {
+  const runImport = async (
+    inputRows?: ParsedRow[],
+    resumeStage?: 'create' | 'mail',
+    resumeFrom?: number,
+    prevResults?: ResultRow[],
+    sentMails?: number[],
+  ) => {
     setConfirmOpen(false)
-    setPhase('working')
-    setStage('create')
-    setProgress({ done: 0, total: validRows.length })
-    const out: ResultRow[] = []
+    if (!resumeStage) setPhase('working')
+    const currentRows = inputRows ?? validRows
+    const startStage = resumeStage ?? 'create'
+    const startFrom = resumeFrom ?? 0
+    const out: ResultRow[] = prevResults ? [...prevResults] : []
 
-    for (let i = 0; i < validRows.length; i += CHUNK_SIZE) {
-      const chunk = validRows.slice(i, i + CHUNK_SIZE)
-      try {
-        const data = await invokeChunk({
-          role: importRole,
-          members: chunk.map((r, j) => ({
-            client_index: i + j,
-            full_name: r.fullName,
-            email: r.email,
-            student_id: r.studentId,
-            department: r.department,
-            year_of_study: r.yearOfStudy,
-            phone: r.phone,
-          })),
-        })
-        type ApiResult = { index: number; client_index: number | null; ok: boolean; error?: string; password?: string }
-        const api = ((data as { results?: ApiResult[] })?.results ?? []) as ApiResult[]
-        for (let j = 0; j < chunk.length; j++) {
-          const match = api.find((a) => a.client_index === i + j)
-          out.push({
-            ...chunk[j],
-            status: match?.ok ? 'created' : 'failed',
-            password: match?.password,
+    if (startStage === 'create') {
+      setStage('create')
+      setProgress({ done: startFrom, total: currentRows.length })
+
+      for (let i = startFrom; i < currentRows.length; i += CHUNK_SIZE) {
+        const chunk = currentRows.slice(i, i + CHUNK_SIZE)
+        try {
+          const data = await invokeChunk({
             role: importRole,
-            resultError: match?.ok ? undefined : match?.error ?? 'No response for this row.',
+            members: chunk.map((r, j) => ({
+              client_index: i + j,
+              full_name: r.fullName,
+              email: r.email,
+              student_id: r.studentId,
+              department: r.department,
+              year_of_study: r.yearOfStudy,
+              phone: r.phone,
+            })),
           })
+          type ApiResult = { index: number; client_index: number | null; ok: boolean; error?: string; password?: string }
+          const api = ((data as { results?: ApiResult[] })?.results ?? []) as ApiResult[]
+          for (let j = 0; j < chunk.length; j++) {
+            const match = api.find((a) => a.client_index === i + j)
+            out.push({
+              ...chunk[j],
+              status: match?.ok ? 'created' : 'failed',
+              password: match?.password,
+              role: importRole,
+              resultError: match?.ok ? undefined : match?.error ?? 'No response for this row.',
+            })
+          }
+        } catch (err) {
+          for (const r of chunk) out.push({ ...r, status: 'failed', role: importRole, resultError: errorMessage(err) })
         }
-      } catch (err) {
-        for (const r of chunk) out.push({ ...r, status: 'failed', role: importRole, resultError: errorMessage(err) })
+        setProgress({ done: Math.min(i + CHUNK_SIZE, currentRows.length), total: currentRows.length })
+        setResults([...out])
+        saveWorkingState('create', Math.min(i + CHUNK_SIZE, currentRows.length), out, [], currentRows, fileName, importRole)
       }
-      setProgress({ done: Math.min(i + CHUNK_SIZE, validRows.length), total: validRows.length })
-      setResults([...out])
     }
 
     const mailList = out.filter((r) => r.status === 'created')
+    const sentSet = new Set(sentMails ?? [])
     setStage('mail')
     setProgress({ done: 0, total: mailList.length })
     let mailed = 0
     for (const r of mailList) {
+      if (sentSet.has(r.index)) {
+        mailed += 1
+        setProgress({ done: mailed, total: mailList.length })
+        continue
+      }
       const { account, error: mailErr } = await sendWelcomeMail(r)
       r.mailStatus = account ? 'sent' : 'failed'
       if (account) r.mailUsed = account
@@ -287,9 +360,12 @@ export default function BulkAddMembers() {
       mailed += 1
       setProgress({ done: mailed, total: mailList.length })
       setResults([...out])
+      const allSent = mailList.filter((m) => m.mailStatus === 'sent').map((m) => m.index)
+      saveWorkingState('mail', 0, out, allSent, currentRows, fileName, importRole)
     }
 
     setResults(out)
+    clearSavedState()
     setPhase('done')
   }
 
@@ -386,6 +462,7 @@ export default function BulkAddMembers() {
 
   const handleExit = () => {
     clearSavedState()
+    setResumed(false)
     setPhase('upload')
     setRows([])
     setResults([])
@@ -791,6 +868,35 @@ export default function BulkAddMembers() {
               : 'All results from this batch will be permanently cleared from this page.'}
           </p>
           <p>Click the button below to confirm.</p>
+        </div>
+      </Modal>
+
+      {/* Resume interrupted import */}
+      <Modal
+        open={resumeOpen}
+        onClose={() => {}}
+        title="Resume previous import?"
+        footer={
+          <>
+            <Button variant="ghost" onClick={dismissResume}>
+              Start new batch
+            </Button>
+            <Button onClick={resumeImport}>
+              <RotateCcw size={16} /> Resume
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3 text-sm text-slate-600">
+          <p>A previous import was interrupted before it finished.</p>
+          <p>Would you like to <strong>resume</strong> where it left off, or <strong>start a new batch</strong>?</p>
+          {saved?.phase === 'working' && (
+            <ul className="list-disc space-y-1 pl-4 text-slate-500">
+              <li>Stage: <strong>{saved.stage === 'mail' ? 'Sending emails' : 'Creating accounts'}</strong></li>
+              <li>{saved.results?.length ?? 0} member(s) processed so far</li>
+              <li>File: {saved.fileName ?? 'Unknown'}</li>
+            </ul>
+          )}
         </div>
       </Modal>
     </div>

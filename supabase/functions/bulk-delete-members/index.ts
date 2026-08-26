@@ -144,6 +144,11 @@ async function handleRequest(req: Request): Promise<Response> {
     } catch (e) {
       results.push({ email, ok: false, error: e instanceof Error ? e.message : String(e) })
     }
+
+    // Safety net: explicitly remove the profile row in case the FK cascade
+    // from auth.users did not fire (GoTrue admin API sometimes skips it).
+    // Mirrors the behaviour of the admin_delete_user RPC.
+    await admin.from("profiles").delete().eq("id", profile.id)
   }
 
   const deletedCount = results.filter((r) => r.ok).length
