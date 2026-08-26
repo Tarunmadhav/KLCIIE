@@ -17,8 +17,6 @@ import { supabase } from '@/lib/supabase'
 import type { SmtpSetting } from '@/lib/types'
 import { cn, errorMessage } from '@/lib/utils'
 
-const MAX_ACCOUNTS = 10
-
 interface Draft {
   key: string
   id?: string
@@ -76,7 +74,6 @@ export default function SmtpSettings() {
   }
 
   const add = () => {
-    if (rows.length >= MAX_ACCOUNTS) return
     setRows((prev) => [
       ...prev,
       {
@@ -184,9 +181,9 @@ export default function SmtpSettings() {
     <div>
       <PageHeader
         title="Email Settings"
-        subtitle={`Gmail SMTP accounts used for registration OTP emails. Failover tries #1, then #2, then #3 … silently — the user only sees an error if every account fails (${rows.length}/${MAX_ACCOUNTS}).`}
+        subtitle={`Gmail SMTP accounts used for all emails. Failover tries #1, then #2, then #3 … silently — the user only sees an error if every account fails (${rows.length} configured).`}
         actions={
-          <Button onClick={add} disabled={rows.length >= MAX_ACCOUNTS}>
+          <Button onClick={add}>
             <Plus size={16} /> Add SMTP
           </Button>
         }
@@ -337,7 +334,7 @@ export default function SmtpSettings() {
           {busy ? <Spinner className="border-white/40 border-t-white" /> : <Save size={16} />} Save SMTP accounts
         </Button>
         <p className="flex items-center gap-1.5 text-xs text-slate-400">
-          <KeyRound size={13} /> {rows.length}/{MAX_ACCOUNTS} accounts · used in list order
+          <KeyRound size={13} /> {rows.length} account{rows.length === 1 ? '' : 's'} · used in list order
         </p>
       </div>
 

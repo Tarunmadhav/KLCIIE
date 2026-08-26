@@ -69,6 +69,7 @@ const PointsAdmin = lazyPage(() => import('@/pages/admin/Points'))
 const MembersAdmin = lazyPage(() => import('@/pages/admin/MembersAdmin'))
 const MembersAdd = lazyPage(() => import('@/pages/admin/MembersAdd'))
 const BulkAddMembers = lazyPage(() => import('@/pages/admin/BulkAddMembers'))
+const BulkDeleteMembers = lazyPage(() => import('@/pages/admin/BulkDeleteMembers'))
 const ForceRegister = lazyPage(() => import('@/pages/admin/ForceRegister'))
 const AmtpsAdmin = lazyPage(() => import('@/pages/admin/AmtpsAdmin'))
 const MemberDetailAdmin = lazyPage(() => import('@/pages/admin/MemberDetailAdmin'))
@@ -193,6 +194,7 @@ export default function App() {
                 <Route path="members" element={<MembersAdmin />} />
                 <Route path="members/add" element={<MembersAdd />} />
                 <Route path="members/bulk-add" element={<RequireSuperAdmin><BulkAddMembers /></RequireSuperAdmin>} />
+                <Route path="members/bulk-delete" element={<RequireSuperAdmin><BulkDeleteMembers /></RequireSuperAdmin>} />
                 <Route path="force-register" element={<RequireSuperAdmin><ForceRegister /></RequireSuperAdmin>} />
                 <Route path="amtps" element={<RequireSuperAdmin><AmtpsAdmin /></RequireSuperAdmin>} />
                 <Route path="members/:id" element={<MemberDetailAdmin />} />
