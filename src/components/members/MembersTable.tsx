@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Github, Linkedin, Mail, Phone, Send, Trash2 } from 'lucide-react'
 import { Avatar, Badge } from '@/components/ui'
-import { supabase } from '@/lib/supabase'
+import { fetchAllProfiles, fetchAllRows } from '@/lib/queries'
 import { ROLE_LABELS, isAdminRole, type Profile } from '@/lib/types'
 import { formatDate, socialHref } from '@/lib/utils'
 
@@ -23,12 +23,16 @@ export interface MemberStats {
 }
 
 export function fetchMemberRows(listedOnly = false): Promise<MemberRow[]> {
-  let query = supabase.from('profiles').select('*').order('full_name')
-  if (listedOnly) query = query.eq('is_listed_member', true)
-  return Promise.all([query, supabase.from('v_member_stats').select('*')]).then(([profiles, stats]) => {
+  const profilesPromise = fetchAllProfiles<Profile>('*', (q) => {
+    let query = q.order('full_name')
+    if (listedOnly) query = query.eq('is_listed_member', true)
+    return query
+  })
+  const statsPromise = fetchAllRows<MemberStats>('v_member_stats', '*')
+  return Promise.all([profilesPromise, statsPromise]).then(([profiles, stats]) => {
     const statsMap = new Map<string, MemberStats>()
-    for (const s of (stats.data ?? []) as MemberStats[]) statsMap.set(s.member_id, s)
-    return ((profiles.data ?? []) as Profile[]).map((p) => ({ ...p, ...(statsMap.get(p.id) ?? {}) })) as MemberRow[]
+    for (const s of stats) statsMap.set(s.member_id, s)
+    return profiles.map((p) => ({ ...p, ...(statsMap.get(p.id) ?? {}) })) as MemberRow[]
   })
 }
 

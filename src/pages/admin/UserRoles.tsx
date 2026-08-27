@@ -3,6 +3,7 @@ import { Clock, RefreshCw, TimerReset, Trash2, UserCog } from 'lucide-react'
 import { Avatar, Badge, Button, EmptyState, Modal, PageHeader, PageLoader, SelectInput, Spinner, TextInput } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
+import { fetchAllProfiles } from '@/lib/queries'
 import { ADMIN_ROLES, ROLE_LABELS, type Profile, type Role } from '@/lib/types'
 import { cn, errorMessage, formatDateTime } from '@/lib/utils'
 
@@ -36,17 +37,18 @@ export default function UserRoles() {
     if (!silent) setLoading(true)
     // Sweep expired temporary roles server-side first so the list is accurate.
     await supabase.rpc('expire_temporary_roles')
-    const { data, error: err } = await supabase
-      .from('profiles')
-      .select('id, full_name, email, ciie_id, role, status, department, year_of_study, pre_temp_role, temp_role_expires_at')
-      .order('full_name', { ascending: true })
-    if (err) {
-      setError(errorMessage(err))
-    } else {
-      setRows((data ?? []) as Profile[])
+    try {
+      const data = await fetchAllProfiles<Profile>(
+        'id, full_name, email, ciie_id, role, status, department, year_of_study, pre_temp_role, temp_role_expires_at',
+        (q) => q.order('full_name', { ascending: true }),
+      )
+      setRows(data)
       const map: Record<string, Role> = {}
-      for (const r of (data ?? []) as Profile[]) map[r.id] = r.role
+      for (const r of data) map[r.id] = r.role
       setRoleByUser(map)
+      setError('')
+    } catch (err) {
+      setError(errorMessage(err))
     }
     if (!silent) setLoading(false)
   }

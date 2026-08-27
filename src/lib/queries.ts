@@ -1,6 +1,13 @@
 import { supabase } from '@/lib/supabase'
-import type { Event, EventTeamMember, LeaderboardRow } from '@/lib/types'
+import type { Event, EventTeamMember, LeaderboardRow, Profile } from '@/lib/types'
 import { isEventEnded } from '@/lib/utils'
+
+/**
+ * Loose type for a `profiles` query builder used by the pagination helper.
+ * Kept opaque because supabase-js builder generics are deep/unstable to restate.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type ProfileQuery = any
 
 export interface LeaderboardFilters {
   academic_year?: string
@@ -107,4 +114,39 @@ export async function fetchTeams(): Promise<string[]> {
     .not('team', 'is', null)
     .order('team')
   return Array.from(new Set((data ?? []).map((r) => r.team as string)))
+}
+
+/**
+ * Fetch EVERY row of a query, paginating past Supabase's 1000-row default cap
+ * so admin pages show the full dataset instead of only the first ~998 rows.
+ * `configure` lets callers add filters/ordering to the underlying query.
+ */
+export async function fetchAllRows<T = unknown>(
+  table: string,
+  select = '*',
+  configure?: (q: ProfileQuery) => ProfileQuery,
+): Promise<T[]> {
+  const pageSize = 1000
+  const all: T[] = []
+  let from = 0
+  for (;;) {
+    let q: ProfileQuery = supabase.from(table).select(select) as unknown as ProfileQuery
+    if (configure) q = configure(q)
+    q = q.range(from, from + pageSize - 1) as ProfileQuery
+    const { data, error } = await q
+    if (error) throw error
+    const chunk = (data ?? []) as T[]
+    all.push(...chunk)
+    if (chunk.length < pageSize) break
+    from += pageSize
+  }
+  return all
+}
+
+/** Convenience wrapper for paginated `profiles` reads. */
+export async function fetchAllProfiles<T = Profile>(
+  select: string,
+  configure?: (q: ProfileQuery) => ProfileQuery,
+): Promise<T[]> {
+  return fetchAllRows<T>('profiles', select, configure)
 }
