@@ -14,6 +14,7 @@ import {
   TextInput,
 } from '@/components/ui'
 import { supabase } from '@/lib/supabase'
+import { fetchAllProfiles } from '@/lib/queries'
 import { ADMIN_ROLES, isAdminRole, type Profile } from '@/lib/types'
 import { cn, errorMessage, formatDateTime } from '@/lib/utils'
 
@@ -98,13 +99,14 @@ export default function SendMail() {
   const [sentBanner, setSentBanner] = useState(false)
 
   const loadPeople = useCallback(async () => {
-    const { data, error: err } = await supabase
-      .from('profiles')
-      .select('id, full_name, email, role')
-      .not('email', 'is', null)
-      .order('full_name')
-    if (!err && data) {
+    try {
+      const data = await fetchAllProfiles<Pick<Profile, 'id' | 'full_name' | 'email' | 'role'>>(
+        'id, full_name, email, role',
+        (q) => q.not('email', 'is', null).order('full_name'),
+      )
       setPeople(data as Profile[])
+    } catch {
+      // ignore — pick list just stays empty on failure
     }
   }, [])
 
@@ -151,13 +153,14 @@ export default function SendMail() {
     } else if (audience === 'pick') {
       list = Object.values(picked)
     } else {
-      let query = supabase.from('profiles').select('id, email, full_name, role').not('email', 'is', null)
-      if (audience === 'ciie') query = query.eq('role', 'member_ciie')
-      else if (audience === 'admins') query = query.in('role', ADMIN_ROLES)
-      else if (audience === 'recruits') query = query.eq('role', 'member')
-      const { data, error: err } = await query
-      if (err) throw new Error(errorMessage(err))
-      list = ((data ?? []) as Array<{ email: string | null; full_name: string | null }>)
+      const data = await fetchAllProfiles<{ email: string | null; full_name: string | null }>('email, full_name', (q) => {
+        let query = q.not('email', 'is', null)
+        if (audience === 'ciie') query = query.eq('role', 'member_ciie')
+        else if (audience === 'admins') query = query.in('role', ADMIN_ROLES)
+        else if (audience === 'recruits') query = query.eq('role', 'member')
+        return query
+      })
+      list = data
         .map((p) => {
           const email = firstEmail(p.email)
           return email ? { ...email, name: p.full_name } : null

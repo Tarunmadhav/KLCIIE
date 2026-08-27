@@ -3,6 +3,7 @@ import { BarChart3, CheckCircle2, ClipboardList, Download, FileSpreadsheet, XCir
 import { Badge, EmptyState, PageHeader, PageLoader, SelectInput } from '@/components/ui'
 import { SuperAdminExportDialog, type SuperAdminExportRequest } from '@/components/SuperAdminExportDialog'
 import { supabase } from '@/lib/supabase'
+import { fetchAllRows } from '@/lib/queries'
 import { downloadExcelSheets } from '@/lib/excel'
 import { cn, downloadTextFile, formatDate, formatDateTime } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
@@ -112,13 +113,13 @@ export default function Reports() {
   useEffect(() => {
     let active = true
     const load = async () => {
-      const [{ data: memberData }, { data: eventData }] = await Promise.all([
-        supabase.from('v_member_stats').select('*').order('total_points', { ascending: false }),
+      const [memberData, eventData] = await Promise.all([
+        fetchAllRows<MemberStat>('v_member_stats', '*', (q) => q.order('total_points', { ascending: false })),
         supabase.rpc('admin_get_event_stats'),
       ])
       if (active) {
-        setMembers((memberData ?? []) as MemberStat[])
-        setEvents((eventData ?? []) as EventStat[])
+        setMembers(memberData)
+        setEvents((eventData.data ?? []) as EventStat[])
         setLoading(false)
       }
     }
@@ -137,23 +138,19 @@ export default function Reports() {
     }
     setEventLoading(true)
     const [r, a] = await Promise.all([
-      supabase
-        .from('event_registrations')
-        .select(
-          'id, registration_code, member_id, attendee_name, student_id, email, phone, department, year_of_study, college, form_data, status, created_at, profile:profiles(full_name, ciie_id)',
-        )
-        .eq('event_id', id)
-        .order('created_at', { ascending: true }),
-      supabase
-        .from('attendance')
-        .select(
-          'id, member_id, round, status, marked_at, method, registration:event_registrations(registration_code, attendee_name, student_id, email, phone, department, year_of_study, college, form_data, member_id), member:profiles!attendance_member_id_fkey(full_name, ciie_id), marked_by:profiles!attendance_marked_by_fkey(full_name, ciie_id)',
-        )
-        .eq('event_id', id)
-        .order('marked_at', { ascending: true }),
+      fetchAllRows<RegRow>(
+        'event_registrations',
+        'id, registration_code, member_id, attendee_name, student_id, email, phone, department, year_of_study, college, form_data, status, created_at, profile:profiles(full_name, ciie_id)',
+        (q) => q.eq('event_id', id).order('created_at', { ascending: true }),
+      ),
+      fetchAllRows<AttRow>(
+        'attendance',
+        'id, member_id, round, status, marked_at, method, registration:event_registrations(registration_code, attendee_name, student_id, email, phone, department, year_of_study, college, form_data, member_id), member:profiles!attendance_member_id_fkey(full_name, ciie_id), marked_by:profiles!attendance_marked_by_fkey(full_name, ciie_id)',
+        (q) => q.eq('event_id', id).order('marked_at', { ascending: true }),
+      ),
     ])
-    setRegs((r.data ?? []) as unknown as RegRow[])
-    setAttendance((a.data ?? []) as unknown as AttRow[])
+    setRegs(r)
+    setAttendance(a)
     setEventLoading(false)
   }
 

@@ -84,15 +84,12 @@ export default function MembersAdmin() {
         </SelectInput>
         <SelectInput value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
           <option value="all">All roles</option>
-          <option value="member">Members</option>
           <option value="admin">All admins</option>
-          {Object.entries(ROLE_LABELS)
-            .filter(([k]) => isAdminRole(k))
-            .map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
+          {Object.entries(ROLE_LABELS).map(([k, v]) => (
+            <option key={k} value={k}>
+              {v}
+            </option>
+          ))}
         </SelectInput>
         <SelectInput value={teamFilter} onChange={(e) => setTeamFilter(e.target.value)}>
           <option value="all">All teams</option>

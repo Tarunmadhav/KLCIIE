@@ -3,6 +3,7 @@ import { UserCheck, UserPlus } from 'lucide-react'
 import { Avatar, Badge, Button, EmptyState, PageHeader, PageLoader, SelectInput } from '@/components/ui'
 import { useSettings } from '@/hooks/useSettings'
 import { supabase } from '@/lib/supabase'
+import { fetchAllProfiles } from '@/lib/queries'
 import { ADMIN_ROLES, ROLE_LABELS, type Profile } from '@/lib/types'
 import { errorMessage, formatDate } from '@/lib/utils'
 
@@ -19,13 +20,9 @@ export default function Recruits() {
   const [roleByMember, setRoleByMember] = useState<Record<string, string>>({})
 
   const load = async () => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('status', 'pending')
-      .order('created_at', { ascending: true })
+    const data = await fetchAllProfiles<Profile>('*', (q) => q.eq('status', 'pending').order('created_at', { ascending: true }))
     setRows(
-      ((data ?? []) as Profile[]).map((r) => ({
+      data.map((r) => ({
         ...r,
         interview_date: (r.interview_batch === 2 ? settings.interview_day_2 : settings.interview_day_1) ?? null,
       })),

@@ -4,6 +4,7 @@ import { Badge, EmptyState, Modal, PageHeader, PageLoader, TextInput } from '@/c
 import { useAuth } from '@/hooks/useAuth'
 import { downloadExcel } from '@/lib/excel'
 import { supabase } from '@/lib/supabase'
+import { fetchAllRows } from '@/lib/queries'
 import { cn, formatDate, formatDateTime } from '@/lib/utils'
 
 interface EventOption {
@@ -123,23 +124,19 @@ export default function AttendanceSubmitted() {
     if (!id) return
     setRowsLoading(true)
     const [r, a] = await Promise.all([
-      supabase
-        .from('event_registrations')
-        .select(
-          'id, event_id, member_id, attendee_name, student_id, email, phone, department, year_of_study, college, registration_code, form_data, status, created_at',
-        )
-        .eq('event_id', id)
-        .order('created_at', { ascending: true }),
-      supabase
-        .from('attendance')
-        .select(
-          'id, registration_id, member_id, round, status, method, marked_at, marked_by:profiles!attendance_marked_by_fkey(full_name, ciie_id, student_id)',
-        )
-        .eq('event_id', id)
-        .order('marked_at', { ascending: true }),
+      fetchAllRows<RegRow>(
+        'event_registrations',
+        'id, event_id, member_id, attendee_name, student_id, email, phone, department, year_of_study, college, registration_code, form_data, status, created_at',
+        (q) => q.eq('event_id', id).order('created_at', { ascending: true }),
+      ),
+      fetchAllRows<AttRow>(
+        'attendance',
+        'id, registration_id, member_id, round, status, method, marked_at, marked_by:profiles!attendance_marked_by_fkey(full_name, ciie_id, student_id)',
+        (q) => q.eq('event_id', id).order('marked_at', { ascending: true }),
+      ),
     ])
-    const regs = (r.data ?? []) as unknown as RegRow[]
-    const atts = (a.data ?? []) as unknown as AttRow[]
+    const regs = r as RegRow[]
+    const atts = a as AttRow[]
     const byReg = new Map<string, AttRow[]>()
     const byMember = new Map<string, AttRow[]>()
     for (const at of atts) {

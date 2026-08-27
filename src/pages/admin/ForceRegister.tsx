@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CalendarDays, MapPin, UserCheck, Users } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { fetchAllProfiles } from '@/lib/queries'
+import { fetchAllProfiles, fetchAllRows } from '@/lib/queries'
 import type { Event, Profile } from '@/lib/types'
 import { Badge, Button, EmptyState, Modal, PageHeader, PageLoader, TextInput } from '@/components/ui'
 import { errorMessage, formatDate } from '@/lib/utils'
@@ -41,9 +41,9 @@ export default function ForceRegister() {
 
   const loadEvents = useCallback(async () => {
     setPageError('')
-    const [{ data: eventsData, error: evErr }, { data: regsData }] = await Promise.all([
+    const [{ data: eventsData, error: evErr }, regs] = await Promise.all([
       supabase.from('events').select('*').order('start_date', { ascending: false }),
-      supabase.from('event_registrations').select('event_id').neq('status', 'cancelled'),
+      fetchAllRows<{ event_id: string }>('event_registrations', 'event_id', (q) => q.neq('status', 'cancelled')),
     ])
     if (evErr) {
       setPageError(errorMessage(evErr))
@@ -51,7 +51,7 @@ export default function ForceRegister() {
       return
     }
     const counts: Record<string, number> = {}
-    for (const r of regsData ?? []) counts[r.event_id] = (counts[r.event_id] ?? 0) + 1
+    for (const r of regs) counts[r.event_id] = (counts[r.event_id] ?? 0) + 1
     setRegCounts(counts)
     setEvents(eventsData ?? [])
   }, [])
@@ -67,18 +67,15 @@ export default function ForceRegister() {
     setChecked(new Set())
     setResults({})
     setUnregistered(null)
-    const [{ data: regsData, error: regErr }, profilesData] = await Promise.all([
-      supabase.from('event_registrations').select('member_id').eq('event_id', ev.id).neq('status', 'cancelled'),
+    const [regRows, profilesData] = await Promise.all([
+      fetchAllRows<{ member_id: string | null }>('event_registrations', 'member_id', (q) =>
+        q.eq('event_id', ev.id).neq('status', 'cancelled'),
+      ),
       fetchAllProfiles<PickerProfile>('id, full_name, email, ciie_id, student_id, role, status, department', (q) =>
         q.neq('status', 'disabled').order('full_name'),
       ),
     ])
-    if (regErr) {
-      setModalError(errorMessage(regErr))
-      setUnregistered([])
-      return
-    }
-    const registeredIds = new Set((regsData ?? []).map((r) => r.member_id).filter(Boolean) as string[])
+    const registeredIds = new Set(regRows.map((r) => r.member_id).filter(Boolean) as string[])
     setUnregistered((profilesData as PickerProfile[]).filter((p) => !registeredIds.has(p.id)))
   }
 

@@ -4,6 +4,7 @@ import { Camera, ChevronDown, ChevronRight, Download, Ticket } from 'lucide-reac
 import { Badge, EmptyState, PageHeader, PageLoader } from '@/components/ui'
 import { SuperAdminExportDialog, type SuperAdminExportRequest } from '@/components/SuperAdminExportDialog'
 import { supabase } from '@/lib/supabase'
+import { fetchAllRows } from '@/lib/queries'
 import { downloadExcelSheets } from '@/lib/excel'
 import { cn, formatDate, formatDateTime } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
@@ -82,21 +83,20 @@ export default function AttendanceAdmin() {
   }, [])
 
   const loadEventData = async (eventId: string) => {
-    const [{ data: regData }, { data: attData }] = await Promise.all([
-      supabase
-        .from('event_registrations')
-        .select('id, member_id, attendee_name, registration_code, student_id, email, phone, department, year_of_study, college, status, created_at, member:profiles(full_name, ciie_id)')
-        .eq('event_id', eventId)
-        .eq('status', 'confirmed')
-        .order('created_at', { ascending: true }),
-      supabase
-        .from('attendance')
-        .select('registration_id, member_id, round, status, method, marked_at, registration:event_registrations(registration_code, attendee_name, member_id), member:profiles!attendance_member_id_fkey(full_name, ciie_id), marked_by:profiles!attendance_marked_by_fkey(full_name, ciie_id)')
-        .eq('event_id', eventId)
-        .order('marked_at', { ascending: false }),
+    const [regData, attData] = await Promise.all([
+      fetchAllRows<Attendee>(
+        'event_registrations',
+        'id, member_id, attendee_name, registration_code, student_id, email, phone, department, year_of_study, college, status, created_at, member:profiles(full_name, ciie_id)',
+        (q) => q.eq('event_id', eventId).eq('status', 'confirmed').order('created_at', { ascending: true }),
+      ),
+      fetchAllRows<AttRow>(
+        'attendance',
+        'registration_id, member_id, round, status, method, marked_at, registration:event_registrations(registration_code, attendee_name, member_id), member:profiles!attendance_member_id_fkey(full_name, ciie_id), marked_by:profiles!attendance_marked_by_fkey(full_name, ciie_id)',
+        (q) => q.eq('event_id', eventId).order('marked_at', { ascending: false }),
+      ),
     ])
-    const att = (attData ?? []) as unknown as AttRow[]
-    return { regs: (regData ?? []) as unknown as Attendee[], att }
+    const att = attData as AttRow[]
+    return { regs: regData as Attendee[], att }
   }
 
   const refreshList = async (eventId: string) => {

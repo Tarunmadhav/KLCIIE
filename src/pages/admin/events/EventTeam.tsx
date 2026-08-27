@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { Plus, Trash2, UserPlus } from 'lucide-react'
 import { Avatar, Badge, Button, EmptyState, Field, PageLoader, SelectInput, Toggle } from '@/components/ui'
 import { supabase } from '@/lib/supabase'
+import { fetchAllProfiles } from '@/lib/queries'
 import type { Event, EventRole, EventTeamMember, Profile } from '@/lib/types'
 import { errorMessage, formatDate } from '@/lib/utils'
 
@@ -26,7 +27,7 @@ export default function EventTeam() {
 
   const load = async () => {
     if (!id) return
-    const [{ data: ev }, { data: roleData }, { data: teamData }, { data: memberData }] = await Promise.all([
+    const [ev, roleData, teamData, memberData] = await Promise.all([
       supabase.from('events').select('*').eq('id', id).maybeSingle(),
       supabase.from('event_roles').select('*').eq('is_active', true).order('display_order'),
       supabase
@@ -34,12 +35,12 @@ export default function EventTeam() {
         .select('*, member:profiles!inner(id, full_name, avatar_url, ciie_id), role:event_roles!inner(id, name, category)')
         .eq('event_id', id)
         .order('created_at'),
-      supabase.from('profiles').select('id, full_name, ciie_id, department, status').eq('status', 'active').order('full_name'),
+      fetchAllProfiles<Profile>('id, full_name, ciie_id, department, status', (q) => q.eq('status', 'active').order('full_name')),
     ])
-    setEvent((ev ?? null) as Event | null)
-    setRoles((roleData ?? []) as EventRole[])
-    setTeam((teamData ?? []) as TeamRow[])
-    setMembers((memberData ?? []) as Profile[])
+    setEvent((ev.data ?? null) as Event | null)
+    setRoles((roleData.data ?? []) as EventRole[])
+    setTeam((teamData.data ?? []) as TeamRow[])
+    setMembers(memberData)
     setLoading(false)
   }
 

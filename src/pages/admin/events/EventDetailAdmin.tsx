@@ -4,6 +4,7 @@ import { CalendarDays, MapPin, Pencil, Trash2, UserPlus, Users, Video } from 'lu
 import { Badge, Button, EmptyState, Field, Modal, PageLoader, SelectInput } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
+import { fetchAllProfiles, fetchAllRows } from '@/lib/queries'
 import type { Attendance, Event, EventRegistration, Profile } from '@/lib/types'
 import { errorMessage, formatDate } from '@/lib/utils'
 
@@ -42,23 +43,21 @@ export default function EventDetailAdmin() {
 
   const load = async () => {
     if (!id) return
-    const [{ data: ev }, { data: statsData }, { data: regData }, { data: userData }] = await Promise.all([
+    const [{ data: ev }, { data: statsData }, regData, userData] = await Promise.all([
       supabase.from('events').select('*').eq('id', id).maybeSingle(),
       supabase.rpc('admin_get_event_stats'),
-      supabase
-        .from('event_registrations')
-        .select('*, attendance:attendance(*)')
-        .eq('event_id', id)
-        .order('created_at', { ascending: false }),
+      fetchAllRows<RegRow>('event_registrations', '*, attendance:attendance(*)', (q) =>
+        q.eq('event_id', id).order('created_at', { ascending: false }),
+      ),
       isSuperAdmin
-        ? supabase.from('profiles').select('*').neq('status', 'disabled').order('full_name')
-        : Promise.resolve({ data: null }),
+        ? fetchAllProfiles<Profile>('*', (q) => q.neq('status', 'disabled').order('full_name'))
+        : Promise.resolve([] as Profile[]),
     ])
     setEvent((ev ?? null) as Event | null)
     const s = ((statsData ?? []) as Array<{ event_id: string } & EventStats>).find((r) => r.event_id === id)
     setStats(s ?? null)
-    setRegs((regData ?? []) as unknown as RegRow[])
-    setUsers((userData ?? []) as Profile[])
+    setRegs(regData)
+    setUsers(userData)
     setLoading(false)
   }
 
