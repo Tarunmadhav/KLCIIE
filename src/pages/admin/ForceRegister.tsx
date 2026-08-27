@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CalendarDays, MapPin, UserCheck, Users } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { fetchAllProfiles } from '@/lib/queries'
 import type { Event, Profile } from '@/lib/types'
 import { Badge, Button, EmptyState, Modal, PageHeader, PageLoader, TextInput } from '@/components/ui'
 import { errorMessage, formatDate } from '@/lib/utils'
@@ -66,21 +67,19 @@ export default function ForceRegister() {
     setChecked(new Set())
     setResults({})
     setUnregistered(null)
-    const [{ data: profilesData, error: profErr }, { data: regsData, error: regErr }] = await Promise.all([
-      supabase
-        .from('profiles')
-        .select('id, full_name, email, ciie_id, student_id, role, status, department')
-        .neq('status', 'disabled')
-        .order('full_name'),
+    const [{ data: regsData, error: regErr }, profilesData] = await Promise.all([
       supabase.from('event_registrations').select('member_id').eq('event_id', ev.id).neq('status', 'cancelled'),
+      fetchAllProfiles<PickerProfile>('id, full_name, email, ciie_id, student_id, role, status, department', (q) =>
+        q.neq('status', 'disabled').order('full_name'),
+      ),
     ])
-    if (profErr || regErr) {
-      setModalError(errorMessage(profErr ?? regErr))
+    if (regErr) {
+      setModalError(errorMessage(regErr))
       setUnregistered([])
       return
     }
     const registeredIds = new Set((regsData ?? []).map((r) => r.member_id).filter(Boolean) as string[])
-    setUnregistered(((profilesData ?? []) as PickerProfile[]).filter((p) => !registeredIds.has(p.id)))
+    setUnregistered((profilesData as PickerProfile[]).filter((p) => !registeredIds.has(p.id)))
   }
 
   const closeModal = () => {
