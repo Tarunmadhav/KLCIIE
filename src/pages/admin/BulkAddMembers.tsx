@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { Badge, Button, Modal, PageHeader, SelectInput } from '@/components/ui'
 import { supabase } from '@/lib/supabase'
+import { fetchAllProfiles } from '@/lib/queries'
 import { ROLE_LABELS } from '@/lib/types'
 import { downloadExcel } from '@/lib/excel'
 import { cn, digitsOnly, emailInvokeMessage, errorMessage } from '@/lib/utils'
@@ -257,9 +258,9 @@ export default function BulkAddMembers() {
         return { index: i + 1, fullName, email, studentId, department, yearOfStudy, phone, error }
       })
 
-      const { data: existing } = await supabase.from('profiles').select('email, student_id')
-      const dbEmails = new Set((existing ?? []).map((p) => String(p.email ?? '').trim().toLowerCase()))
-      const dbIds = new Set((existing ?? []).map((p) => digitsOnly(p.student_id)))
+      const existing = await fetchAllProfiles<{ email: string | null; student_id: string | null }>('email, student_id')
+      const dbEmails = new Set(existing.map((p) => String(p.email ?? '').trim().toLowerCase()))
+      const dbIds = new Set(existing.map((p) => digitsOnly(p.student_id)))
       for (const row of parsed) {
         if (row.error) continue
         if (dbEmails.has(row.email)) row.error = 'An account with this email already exists.'

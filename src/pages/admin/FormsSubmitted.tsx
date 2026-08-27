@@ -3,6 +3,7 @@ import { Download, FileSpreadsheet, ListChecks, Search, Send } from 'lucide-reac
 import { Badge, EmptyState, Modal, PageHeader, PageLoader, TextInput } from '@/components/ui'
 import { downloadExcel } from '@/lib/excel'
 import { supabase } from '@/lib/supabase'
+import { fetchAllRows } from '@/lib/queries'
 import { ROLE_LABELS, type Profile, type Role } from '@/lib/types'
 import { cn, formatDate, formatDateTime } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
@@ -160,19 +161,16 @@ export default function FormsSubmitted() {
   useEffect(() => {
     let active = true
     const load = async () => {
-      const [acc, evt, opts] = await Promise.all([
-        supabase.from('profiles').select('*').order('created_at', { ascending: false }),
-        supabase
-          .from('event_registrations')
-          .select(
-            'id, event_id, member_id, attendee_name, student_id, email, phone, department, year_of_study, college, registration_code, form_data, status, created_at, event:events(title, start_date)',
-          )
-          .order('created_at', { ascending: false }),
+      const [accounts, evt, opts] = await Promise.all([
+        fetchAllRows<Profile>('profiles', '*', (q) => q.order('created_at', { ascending: false })),
+        fetchAllRows<EventRegRow>('event_registrations', 'id, event_id, member_id, attendee_name, student_id, email, phone, department, year_of_study, college, registration_code, form_data, status, created_at, event:events(title, start_date)', (q) =>
+          q.order('created_at', { ascending: false }),
+        ),
         supabase.from('events').select('id, title, start_date').order('start_date', { ascending: false }),
       ])
       if (active) {
-        setAccounts((acc.data ?? []) as Profile[])
-        setEvents((evt.data ?? []) as unknown as EventRegRow[])
+        setAccounts(accounts)
+        setEvents(evt)
         setEventOptions((opts.data ?? []) as Array<{ id: string; title: string; start_date: string }>)
         setLoading(false)
       }

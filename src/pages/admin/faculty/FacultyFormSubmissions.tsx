@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { ClipboardList, Download } from 'lucide-react'
 import { EmptyState, PageHeader, PageLoader, SelectInput } from '@/components/ui'
 import { supabase } from '@/lib/supabase'
+import { fetchAllRows } from '@/lib/queries'
 import type { CustomFieldDef, FacultyForm, FacultyFormSubmission } from '@/lib/types'
 import { downloadExcel } from '@/lib/excel'
 import { formatDateTime } from '@/lib/utils'
@@ -44,14 +45,19 @@ export default function FacultyFormSubmissions() {
     }
     let active = true
     setRowsLoading(true)
-    supabase
-      .from('faculty_form_submissions')
-      .select('*, member:profiles(full_name, email, ciie_id, department)')
-      .eq('form_id', formId)
-      .order('submitted_at', { ascending: false })
-      .then(({ data }) => {
+    fetchAllRows<unknown>(
+      'faculty_form_submissions',
+      '*, member:profiles(full_name, email, ciie_id, department)',
+      (q) => q.eq('form_id', formId).order('submitted_at', { ascending: false }),
+    )
+      .then((data) => {
         if (!active) return
-        setRows((data ?? []) as unknown as SubmissionRow[])
+        setRows(data as unknown as SubmissionRow[])
+        setRowsLoading(false)
+      })
+      .catch(() => {
+        if (!active) return
+        setRows([])
         setRowsLoading(false)
       })
     return () => {

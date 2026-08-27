@@ -3,6 +3,7 @@ import { Shield, ShieldAlert, UserPlus, UserX } from 'lucide-react'
 import { Avatar, Badge, Button, EmptyState, Field, PageHeader, PageLoader, SelectInput } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
+import { fetchAllProfiles } from '@/lib/queries'
 import { ADMIN_ROLES, ROLE_LABELS, isSuperAdminRole, type Profile } from '@/lib/types'
 import { errorMessage, formatDate } from '@/lib/utils'
 
@@ -80,14 +81,14 @@ export default function Admins() {
   const [loading, setLoading] = useState(true)
 
   const load = async () => {
-    const [{ data: adminData }, { data: memberData }, { data: userData }] = await Promise.all([
-      supabase.from('profiles').select('*').in('role', ADMIN_ROLES).order('full_name'),
-      supabase.from('profiles').select('id, full_name, ciie_id, email, status').eq('role', 'member').eq('status', 'active').order('full_name'),
-      supabase.from('profiles').select('id, full_name, ciie_id, email, status').eq('role', 'user').eq('status', 'active').order('full_name'),
+    const [adminData, memberData, userData] = await Promise.all([
+      fetchAllProfiles<Profile>('*', (q) => q.in('role', ADMIN_ROLES).order('full_name')),
+      fetchAllProfiles<Profile>('id, full_name, ciie_id, email, status', (q) => q.eq('role', 'member').eq('status', 'active').order('full_name')),
+      fetchAllProfiles<Profile>('id, full_name, ciie_id, email, status', (q) => q.eq('role', 'user').eq('status', 'active').order('full_name')),
     ])
-    setAdmins((adminData ?? []) as AdminRow[])
-    setMembers((memberData ?? []) as Profile[])
-    setUsers((userData ?? []) as Profile[])
+    setAdmins(adminData as AdminRow[])
+    setMembers(memberData)
+    setUsers(userData)
     setLoading(false)
   }
 

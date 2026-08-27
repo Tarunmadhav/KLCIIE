@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { ClipboardList, FileInput, Plus } from 'lucide-react'
 import { Badge, EmptyState, PageHeader, PageLoader } from '@/components/ui'
 import { supabase } from '@/lib/supabase'
+import { fetchAllRows } from '@/lib/queries'
 import type { FacultyForm } from '@/lib/types'
 
 const STATUS_TONES: Record<string, 'green' | 'slate' | 'amber'> = {
@@ -19,14 +20,14 @@ export default function FacultyFormsAdmin() {
   useEffect(() => {
     let active = true
     const load = async () => {
-      const [{ data: formsData }, { data: subsData }] = await Promise.all([
+      const [formsData, subRows] = await Promise.all([
         supabase.from('faculty_forms').select('*').order('created_at', { ascending: false }),
-        supabase.from('faculty_form_submissions').select('form_id'),
+        fetchAllRows<{ form_id: string }>('faculty_form_submissions', 'form_id'),
       ])
       if (!active) return
-      setForms((formsData ?? []) as FacultyForm[])
+      setForms((formsData.data ?? []) as FacultyForm[])
       const map: Record<string, number> = {}
-      for (const s of subsData ?? []) map[s.form_id] = (map[s.form_id] ?? 0) + 1
+      for (const s of subRows) map[s.form_id] = (map[s.form_id] ?? 0) + 1
       setCounts(map)
       setLoading(false)
     }

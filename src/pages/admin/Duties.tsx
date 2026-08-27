@@ -3,6 +3,7 @@ import { ClipboardList, FileText, Pencil, Plus, Save, Trash2 } from 'lucide-reac
 import { Button, EmptyState, Field, PageHeader, PageLoader, SelectInput, TextInput } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
+import { fetchAllRows } from '@/lib/queries'
 import type { Duty, DutyAssignment, DutyFile, Profile } from '@/lib/types'
 import { errorMessage, formatDate } from '@/lib/utils'
 
@@ -23,16 +24,16 @@ export default function Duties() {
   const [loading, setLoading] = useState(true)
 
   const load = async () => {
-    const [{ data: dutyData }, { data: assignmentData }, { data: fileData }, { data: memberData }] = await Promise.all([
+    const [dutyData, assignmentData, fileData, memberData] = await Promise.all([
       supabase.from('duties').select('*').order('created_at', { ascending: false }),
-      supabase.from('duty_assignments').select('*, duty:duties(id, title), member:profiles(id, full_name, ciie_id)'),
+      fetchAllRows<DutyAssignment>('duty_assignments', '*, duty:duties(id, title), member:profiles(id, full_name, ciie_id)'),
       supabase.from('duty_files').select('*'),
-      supabase.from('profiles').select('id, full_name, ciie_id, department').eq('status', 'active').order('full_name'),
+      fetchAllRows<Profile>('profiles', 'id, full_name, ciie_id, department', (q) => q.eq('status', 'active').order('full_name')),
     ])
-    setDuties((dutyData ?? []) as Duty[])
-    setAssignments((assignmentData ?? []) as DutyAssignment[])
-    setFiles((fileData ?? []) as DutyFile[])
-    setMembers((memberData ?? []) as Profile[])
+    setDuties((dutyData.data ?? []) as Duty[])
+    setAssignments(assignmentData)
+    setFiles((fileData.data ?? []) as DutyFile[])
+    setMembers(memberData)
     setLoading(false)
   }
 

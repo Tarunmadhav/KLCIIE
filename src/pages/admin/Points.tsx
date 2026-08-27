@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Award, Plus, Trash2 } from 'lucide-react'
 import { Avatar, Badge, Button, EmptyState, Field, PageHeader, PageLoader, SelectInput, TextInput, Toggle } from '@/components/ui'
 import { supabase } from '@/lib/supabase'
+import { fetchAllProfiles } from '@/lib/queries'
 import type { Event, Profile } from '@/lib/types'
 import { errorMessage, formatDateTime, moneyPoints } from '@/lib/utils'
 
@@ -37,8 +38,8 @@ export default function Points() {
   const [loading, setLoading] = useState(true)
 
   const load = async () => {
-    const [{ data: memberData }, { data: eventData }, { data: txData }] = await Promise.all([
-      supabase.from('profiles').select('id, full_name, ciie_id, department, status').eq('status', 'active').order('full_name'),
+    const [memberData, eventData, txData] = await Promise.all([
+      fetchAllProfiles<Profile>('id, full_name, ciie_id, department, status', (q) => q.eq('status', 'active').order('full_name')),
       supabase.from('events').select('id, title').order('start_date', { ascending: false }).limit(50),
       supabase
         .from('member_points_transactions')
@@ -46,9 +47,9 @@ export default function Points() {
         .order('created_at', { ascending: false })
         .limit(100),
     ])
-    setMembers((memberData ?? []) as Profile[])
-    setEvents((eventData ?? []) as Event[])
-    setTxs((txData ?? []) as TxRow[])
+    setMembers(memberData)
+    setEvents((eventData.data ?? []) as Event[])
+    setTxs((txData.data ?? []) as TxRow[])
     setLoading(false)
   }
 

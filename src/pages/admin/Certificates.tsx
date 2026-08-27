@@ -3,6 +3,7 @@ import { Award, Trash2 } from 'lucide-react'
 import { Badge, Button, EmptyState, Field, PageHeader, PageLoader, SelectInput } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
+import { fetchAllRows } from '@/lib/queries'
 import type { Certificate, Event, EventRegistration } from '@/lib/types'
 import { errorMessage, formatDate } from '@/lib/utils'
 
@@ -45,19 +46,19 @@ export default function Certificates() {
 
   const loadEvent = async (id: string) => {
     if (!id) return
-    const [attResult, certResult] = await Promise.all([
-      supabase
-        .from('attendance')
-        .select('id, member_id, registration:event_registrations(id, member_id, attendee_name, registration_code)')
-        .eq('event_id', id)
-        .eq('status', 'present'),
-      supabase
-        .from('certificates')
-        .select('*, member:profiles!certificates_member_id_fkey(id, full_name), registration:event_registrations(id, attendee_name)')
-        .eq('event_id', id)
-        .order('issued_at', { ascending: false }),
+    const [attRows, certResult] = await Promise.all([
+      fetchAllRows<AttendanceRow>(
+        'attendance',
+        'id, member_id, registration:event_registrations(id, member_id, attendee_name, registration_code)',
+        (q) => q.eq('event_id', id).eq('status', 'present'),
+      ),
+      fetchAllRows<CertRow>(
+        'certificates',
+        '*, member:profiles!certificates_member_id_fkey(id, full_name), registration:event_registrations(id, attendee_name)',
+        (q) => q.eq('event_id', id).order('issued_at', { ascending: false }),
+      ),
     ])
-    const presentRows = (attResult.data ?? []) as unknown as AttendanceRow[]
+    const presentRows = attRows as AttendanceRow[]
     const seen = new Set<string>()
     const deduped = presentRows.filter((p) => {
       const key = p.registration?.id ?? p.member_id ?? p.id
@@ -66,9 +67,9 @@ export default function Certificates() {
       return true
     })
     setPresent(deduped)
-    setCerts((certResult.data ?? []) as CertRow[])
+    setCerts(certResult as CertRow[])
     const map: Record<string, boolean> = {}
-    for (const c of (certResult.data ?? []) as CertRow[]) map[c.registration_id ?? ''] = true
+    for (const c of certResult as CertRow[]) map[c.registration_id ?? ''] = true
     setIssued(map)
     setError('')
   }
