@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Camera, ChevronDown, ChevronRight, Download, Ticket } from 'lucide-react'
-import { Badge, EmptyState, PageHeader, PageLoader } from '@/components/ui'
+import { Badge, EmptyState, PageHeader, PageLoader, Avatar } from '@/components/ui'
 import { SuperAdminExportDialog, type SuperAdminExportRequest } from '@/components/SuperAdminExportDialog'
 import { supabase } from '@/lib/supabase'
 import { fetchAllRows } from '@/lib/queries'
@@ -32,7 +32,7 @@ interface Attendee {
   department: string | null
   year_of_study: string | null
   college: string | null
-  member?: { full_name?: string; ciie_id?: string } | null
+  member?: { full_name?: string; ciie_id?: string; avatar_url?: string | null } | null
   attendance?: Array<{
     round: number
     status: string
@@ -50,7 +50,7 @@ interface AttRow {
   method: string
   marked_at: string
   registration: { registration_code: string; attendee_name: string; member_id: string | null } | null
-  member: { full_name: string | null; ciie_id: string | null } | null
+  member: { full_name: string | null; ciie_id: string | null; avatar_url?: string | null } | null
   marked_by: { full_name: string | null; ciie_id: string | null } | null
 }
 
@@ -86,12 +86,12 @@ export default function AttendanceAdmin() {
     const [regData, attData] = await Promise.all([
       fetchAllRows<Attendee>(
         'event_registrations',
-        'id, member_id, attendee_name, registration_code, student_id, email, phone, department, year_of_study, college, status, created_at, member:profiles(full_name, ciie_id)',
+        'id, member_id, attendee_name, registration_code, student_id, email, phone, department, year_of_study, college, status, created_at, member:profiles(full_name, ciie_id, avatar_url)',
         (q) => q.eq('event_id', eventId).eq('status', 'confirmed').order('created_at', { ascending: true }),
       ),
       fetchAllRows<AttRow>(
         'attendance',
-        'registration_id, member_id, round, status, method, marked_at, registration:event_registrations(registration_code, attendee_name, member_id), member:profiles!attendance_member_id_fkey(full_name, ciie_id), marked_by:profiles!attendance_marked_by_fkey(full_name, ciie_id)',
+        'registration_id, member_id, round, status, method, marked_at, registration:event_registrations(registration_code, attendee_name, member_id), member:profiles!attendance_member_id_fkey(full_name, ciie_id, avatar_url), marked_by:profiles!attendance_marked_by_fkey(full_name, ciie_id)',
         (q) => q.eq('event_id', eventId).order('marked_at', { ascending: false }),
       ),
     ])
@@ -290,29 +290,32 @@ export default function AttendanceAdmin() {
                           const name = r.member?.full_name ?? r.attendee_name
                           return (
                             <li key={r.id} className="flex items-start justify-between gap-2 py-2">
-                              <div className="min-w-0">
-                                <p className={cn('truncate text-sm font-semibold', finalPresent ? 'text-slate-900' : 'text-slate-600')}>
-                                  {name}
-                                </p>
-                                <p className="text-[11px] text-slate-400">
-                                  {r.student_id ?? r.member?.ciie_id ?? r.registration_code}
-                                </p>
-                                <div className="mt-1 flex flex-wrap gap-1">
-                                  {Array.from({ length: roundsCount }, (_, i) => i + 1).map((n) => {
-                                    const a = attOf(n)
-                                    const present = a?.status === 'present'
-                                    return (
-                                      <span
-                                        key={n}
-                                        className={cn(
-                                          'rounded px-1.5 py-0.5 text-[10px] font-semibold',
-                                          present ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-400',
-                                        )}
-                                      >
-                                        R{n} {present ? 'Present' : '—'}
-                                      </span>
-                                    )
-                                  })}
+                              <div className="flex min-w-0 items-start gap-2.5">
+                                <Avatar name={r.member?.full_name ?? r.attendee_name} src={r.member?.avatar_url} className="h-9 w-9 shrink-0 text-sm" />
+                                <div className="min-w-0">
+                                  <p className={cn('truncate text-sm font-semibold', finalPresent ? 'text-slate-900' : 'text-slate-600')}>
+                                    {name}
+                                  </p>
+                                  <p className="text-[11px] text-slate-400">
+                                    {r.student_id ?? r.member?.ciie_id ?? r.registration_code}
+                                  </p>
+                                  <div className="mt-1 flex flex-wrap gap-1">
+                                    {Array.from({ length: roundsCount }, (_, i) => i + 1).map((n) => {
+                                      const a = attOf(n)
+                                      const present = a?.status === 'present'
+                                      return (
+                                        <span
+                                          key={n}
+                                          className={cn(
+                                            'rounded px-1.5 py-0.5 text-[10px] font-semibold',
+                                            present ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-400',
+                                          )}
+                                        >
+                                          R{n} {present ? 'Present' : '—'}
+                                        </span>
+                                      )
+                                    })}
+                                  </div>
                                 </div>
                               </div>
                               <div className="flex shrink-0 flex-col items-end gap-1">

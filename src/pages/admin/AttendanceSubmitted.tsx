@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { ClipboardCheck, Download, FileSpreadsheet, ScanLine, Search, Ticket } from 'lucide-react'
-import { Badge, EmptyState, Modal, PageHeader, PageLoader, TextInput } from '@/components/ui'
+import { Badge, EmptyState, Modal, PageHeader, PageLoader, TextInput, Avatar } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
 import { downloadExcel } from '@/lib/excel'
 import { supabase } from '@/lib/supabase'
@@ -33,6 +33,7 @@ interface RegRow {
   form_data: Record<string, unknown>
   status: string
   created_at: string
+  member?: { full_name?: string | null; ciie_id?: string | null; avatar_url?: string | null } | null
 }
 
 interface AttRow {
@@ -126,7 +127,7 @@ export default function AttendanceSubmitted() {
     const [r, a] = await Promise.all([
       fetchAllRows<RegRow>(
         'event_registrations',
-        'id, event_id, member_id, attendee_name, student_id, email, phone, department, year_of_study, college, registration_code, form_data, status, created_at',
+        'id, event_id, member_id, attendee_name, student_id, email, phone, department, year_of_study, college, registration_code, form_data, status, created_at, member:profiles(full_name, ciie_id, avatar_url)',
         (q) => q.eq('event_id', id).order('created_at', { ascending: true }),
       ),
       fetchAllRows<AttRow>(
@@ -389,7 +390,12 @@ export default function AttendanceSubmitted() {
                 <tbody className="divide-y divide-slate-100">
                   {filteredRows.map((r) => (
                     <tr key={r.id} onClick={() => setSelected(r)} className="cursor-pointer transition-colors hover:bg-primary-50/50">
-                      <td className="px-4 py-2 font-semibold text-slate-900">{r.attendee_name}</td>
+                      <td className="px-4 py-2">
+                        <span className="flex items-center gap-2 font-semibold text-slate-900">
+                          <Avatar name={r.member?.full_name ?? r.attendee_name} src={r.member?.avatar_url} className="h-7 w-7 shrink-0 text-xs" />
+                          {r.attendee_name}
+                        </span>
+                      </td>
                       <td className="px-4 py-2 font-mono text-xs text-slate-500">{r.registration_code}</td>
                       <td className="px-4 py-2 font-mono text-xs text-slate-500">{r.student_id ?? '—'}</td>
                       <td className="px-4 py-2 text-slate-600">{r.email ?? '—'}</td>
@@ -479,7 +485,25 @@ export default function AttendanceSubmitted() {
           ) : undefined
         }
       >
-        {selected && <DetailList items={detailItems(selected)} />}
+        {selected && (
+          <div className="space-y-4">
+            <DetailList items={detailItems(selected)} />
+            {selected.member?.avatar_url && (
+              <div className="flex flex-col items-center rounded-xl border border-slate-200 p-4">
+                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-400">Photo</p>
+                <img
+                  src={selected.member.avatar_url}
+                  alt={selected.attendee_name}
+                  className="h-40 w-40 rounded-2xl border border-slate-200 object-cover shadow-sm"
+                  onError={(e) => {
+                    const t = e.currentTarget
+                    t.style.display = 'none'
+                  }}
+                />
+              </div>
+            )}
+          </div>
+        )}
       </Modal>
     </div>
   )
