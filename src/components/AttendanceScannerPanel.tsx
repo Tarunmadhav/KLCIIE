@@ -29,6 +29,7 @@ function Detail({
 
 interface ScanDetails {
   name?: string
+  avatar_url?: string | null
   ciie_id?: string
   student_id?: string
   email?: string
@@ -334,6 +335,7 @@ export default function AttendanceScannerPanel({ eventId }: AttendanceScannerPan
     const d = data as ScanDetails
     return {
       name: d.name ?? undefined,
+      avatar_url: d.avatar_url ?? null,
       ciie_id: d.ciie_id ?? undefined,
       student_id: d.student_id ?? undefined,
       email: d.email ?? undefined,
@@ -430,6 +432,20 @@ export default function AttendanceScannerPanel({ eventId }: AttendanceScannerPan
                 )}
                 {scanDetails.marked_at && <Detail label="Marked at" value={scanDetails.marked_at} />}
               </dl>
+              {scanDetails.avatar_url && (
+                <div className="mt-4 flex flex-col items-center border-t border-slate-100 pt-3">
+                  <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">Photo</p>
+                  <img
+                    src={scanDetails.avatar_url}
+                    alt={scanDetails.name ?? 'Member photo'}
+                    className="h-36 w-36 rounded-2xl border border-slate-200 object-cover shadow-sm"
+                    onError={(e) => {
+                      const t = e.currentTarget
+                      t.style.display = 'none'
+                    }}
+                  />
+                </div>
+              )}
             </div>
           )}
           {isDuplicate && scanDetails && (
@@ -448,6 +464,20 @@ export default function AttendanceScannerPanel({ eventId }: AttendanceScannerPan
                 )}
                 {scanDetails.marked_at && <Detail label="Already scanned at" value={scanDetails.marked_at} />}
               </dl>
+              {scanDetails.avatar_url && (
+                <div className="mt-4 flex flex-col items-center border-t border-slate-100 pt-3">
+                  <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">Photo</p>
+                  <img
+                    src={scanDetails.avatar_url}
+                    alt={scanDetails.name ?? 'Member photo'}
+                    className="h-36 w-36 rounded-2xl border border-slate-200 object-cover shadow-sm"
+                    onError={(e) => {
+                      const t = e.currentTarget
+                      t.style.display = 'none'
+                    }}
+                  />
+                </div>
+              )}
             </div>
           )}
           {state === 'error' && !isDuplicate && (
